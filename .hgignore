@@ -2,3 +2,4 @@ nvvm.h
 libnvvm.so
 .pyc
 .swp
+__pycache__

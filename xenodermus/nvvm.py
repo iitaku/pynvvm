@@ -30,79 +30,93 @@ class nvvmCU(ctypes.Structure):
   _fields_ = [('_nvvmCU', ctypes.c_void_p)]
 #end nvvmCU
 
-_this_file = os.path.abspath(__file__)
-_dllfile = os.path.join(os.path.dirname(_this_file), 'LibNVVM/libnvvm.so')
-_dll = ctypes.CDLL(_dllfile)
+class _nvvmInstance:
+  def __init__(self):
+    # initialize
+    this_file = os.path.abspath(__file__)
+    dllfile = os.path.join(os.path.dirname(this_file), 'externals/LibNVVM/libnvvm.so')
+    self._dll = ctypes.CDLL(dllfile)
+ 
+    self._dll.nvvmInit.restype = nvvmResult
+    self._dll.nvvmInit()
 
-def Init():
-  _dll.nvvmInit.restype = nvvmResult
-  return _dll.nvvmInit()
+    # method
+    self._dll.nvvmVersion.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int)]
+    self._dll.nvvmVersion.restype = nvvmResult
 
-def Fini():
-  _dll.nvvmFini.restype = nvvmResult
-  return _dll.nvvmFini()
+    self._dll.nvvmCreateCU.argtypes = [ctypes.POINTER(nvvmCU)]
+    self._dll.nvvmCreateCU.restype = nvvmResult
 
-def Version():
-  _dll.nvvmVersion.argtypes = [ctypes.POINTER(ctypes.c_int),
-                               ctypes.POINTER(ctypes.c_int)]
-  _dll.nvvmVersion.restype = nvvmResult
-  major = ctypes.c_int()
-  minor = ctypes.c_int()
-  result = _dll.nvvmVersion(ctypes.byref(major), ctypes.byref(minor))
-  return [result, major.value, minor.value]
+    self._dll.nvvmDestroyCU.argtypes = [ctypes.POINTER(nvvmCU)]
+    self._dll.nvvmDestroyCU.restype = nvvmResult
 
-def CreateCU():
-  _dll.nvvmCreateCU.argtypes = [ctypes.POINTER(nvvmCU)]
-  _dll.nvvmCreateCU.restype = nvvmResult
-  cu = nvvmCU()
-  result = _dll.nvvmCreateCU(ctypes.byref(cu))
-  return [result, cu]
+    self._dll.nvvmCUAddModule.argtypes = [nvvmCU, ctypes.c_char_p, ctypes.c_size_t]
+    self._dll.nvvmCUAddModule.restype = nvvmResult
 
-def DestroyCU(cu):
-  _dll.nvvmDestroyCU.argtypes = [ctypes.POINTER(nvvmCU)]
-  _dll.nvvmDestroyCU.restype = nvvmResult
-  return _dll.nvvmDestroyCU(ctypes.byref(cu))
+    self._dll.nvvmCompileCU.restype = nvvmResult
 
-def CUAddModule(cu, code):
-  _dll.nvvmCUAddModule.argtypes = [nvvmCU, ctypes.c_char_p, ctypes.c_size_t]
-  _dll.nvvmCUAddModule.restype = nvvmResult
-  return _dll.nvvmCUAddModule(cu, ctypes.c_char_p(code), ctypes.c_size_t(len(code)))
+    self._dll.nvvmGetCompiledResultSize.argtypes = [nvvmCU, ctypes.POINTER(ctypes.c_size_t)]
+    self._dll.nvvmGetCompiledResultSize.restype = nvvmResult
 
-def CompileCU(cu, options):
-  numOptions = len(options)
-  options_t = ctypes.c_char_p * numOptions
-  _dll.nvvmCompileCU.argtypes = [nvvmCU, ctypes.c_int, options_t]
-  _dll.nvvmCompileCU.restype = nvvmResult
-  options_char_p = options_t()
-  for i, s in enumerate(options):
-    options_char_p[i] = ctypes.c_char_p(s)
-  return _dll.nvvmCompileCU(cu, ctypes.c_int(numOptions), options_char_p)
+    self._dll.nvvmGetCompiledResult.restype = nvvmResult
 
-def GetCompiledResult(cu):
-  _dll.nvvmGetCompiledResultSize.argtypes = [nvvmCU, ctypes.POINTER(ctypes.c_size_t)]
-  _dll.nvvmGetCompiledResultSize.restype = nvvmResult
-  size = ctypes.c_size_t()
-  result = _dll.nvvmGetCompiledResultSize(cu, ctypes.byref(size))
-  if nvvmResult.NVVM_SUCCESS != result.val:
-    return result, ''
-  buffer_t = ctypes.c_char * size.value
-  _dll.nvvmGetCompiledResult.argtypes = [nvvmCU, buffer_t]
-  _dll.nvvmGetCompiledResult.restype = nvvmResult
-  msg_buffer = buffer_t()
-  result = _dll.nvvmGetCompiledResult(cu, msg_buffer)
-  return result, msg_buffer.value
+    self._dll.nvvmGetCompilationLogSize.argtypes = [nvvmCU, ctypes.POINTER(ctypes.c_size_t)]
+    self._dll.nvvmGetCompilationLogSize.restype = nvvmResult
 
-def GetCompilationLog(cu):
-  _dll.nvvmGetCompilationLogSize.argtypes = [nvvmCU, ctypes.POINTER(ctypes.c_size_t)]
-  _dll.nvvmGetCompilationLogSize.restype = nvvmResult
-  size = ctypes.c_size_t()
-  result = _dll.nvvmGetCompilationLogSize(cu, ctypes.byref(size))
-  if nvvmResult.NVVM_SUCCESS != result.val:
-    return result, ''
-  buffer_t = ctypes.c_char * size.value
-  _dll.nvvmGetCompilationLog.argtypes = [nvvmCU, buffer_t]
-  _dll.nvvmGetCompilationLog.restype = nvvmResult
-  msg_buffer = buffer_t()
-  result = _dll.nvvmGetCompilationLog(cu, msg_buffer)
-  return result, msg_buffer.value
+    self._dll.nvvmGetCompilationLog.restype = nvvmResult
+    
+    return
 
+  def __del__(self):
+    self._dll.nvvmFini.restype = nvvmResult
+    return self._dll.nvvmFini()
+
+  def version(self):
+    major = ctypes.c_int()
+    minor = ctypes.c_int()
+    result = self._dll.nvvmVersion(ctypes.byref(major), ctypes.byref(minor))
+    return [result, major.value, minor.value]
+  
+  def create_cu(self):
+    cu = nvvmCU()
+    result = self._dll.nvvmCreateCU(ctypes.byref(cu))
+    return [result, cu]
+  
+  def destroy_cu(self, cu):
+    return self._dll.nvvmDestroyCU(ctypes.byref(cu))
+  
+  def cu_add_module(self, cu, code):
+    return self._dll.nvvmCUAddModule(cu, ctypes.c_char_p(code.encode('ascii')), ctypes.c_size_t(len(code)))
+  
+  def compile_cu(self, cu, options):
+    numOptions = len(options)
+    options_t = ctypes.c_char_p * numOptions
+    self._dll.nvvmCompileCU.argtypes = [nvvmCU, ctypes.c_int, options_t]
+    options_char_p = options_t()
+    for i, s in enumerate(options):
+      options_char_p[i] = ctypes.c_char_p(s.encode('ascii'))
+    return self._dll.nvvmCompileCU(cu, ctypes.c_int(numOptions), options_char_p)
+  
+  def get_compiled_result(self, cu):
+    size = ctypes.c_size_t()
+    result = self._dll.nvvmGetCompiledResultSize(cu, ctypes.byref(size))
+    if nvvmResult.NVVM_SUCCESS != result.val:
+      return result, ''
+    buffer_t = ctypes.c_char * size.value
+    self._dll.nvvmGetCompiledResult.argtypes = [nvvmCU, buffer_t]
+    msg_buffer = buffer_t()
+    result = self._dll.nvvmGetCompiledResult(cu, msg_buffer)
+    return result, msg_buffer.value.decode('UTF-8')
+  
+  def get_compilation_log(self, cu):
+    size = ctypes.c_size_t()
+    result = self._dll.nvvmGetCompilationLogSize(cu, ctypes.byref(size))
+    if nvvmResult.NVVM_SUCCESS != result.val:
+      return result, ''
+    buffer_t = ctypes.c_char * size.value
+    self._dll.nvvmGetCompilationLog.argtypes = [nvvmCU, buffer_t]
+    msg_buffer = buffer_t()
+    result = self._dll.nvvmGetCompilationLog(cu, msg_buffer)
+    return result, msg_buffer.value
+
+instance = _nvvmInstance()
