@@ -3,8 +3,8 @@ import inspect
 import sys
 from string import Template
 
-import pycuda.autoinit
-import pycuda.driver as drv
+#import pycuda.autoinit
+#import pycuda.driver as drv
 import numpy
 
 from . import nvvm
@@ -161,15 +161,15 @@ class Composer:
     #print(ptx_code)
     assert nvvm.nvvmResult.NVVM_SUCCESS == result.val
     
-    m = drv.module_from_buffer(ptx_code)
-    stub_kernel = m.get_function('stub_kernel')
+    #m = drv.module_from_buffer(ptx_code)
+    #stub_kernel = m.get_function('stub_kernel')
    
-    block_size = (256, 1, 1)
-    grid_size  = (1024, 1, 1)
+    #block_size = (256, 1, 1)
+    #grid_size  = (1024, 1, 1)
 
-    outgoing = numpy.arange(len(incoming)).astype(numpy.float32)
+    #outgoing = numpy.arange(len(incoming)).astype(numpy.float32)
   
-    stub_kernel(drv.In(incoming), drv.Out(outgoing), block=block_size, grid=grid_size)
+    #stub_kernel(drv.In(incoming), drv.Out(outgoing), block=block_size, grid=grid_size)
 
     return outgoing
 #end class Composer
@@ -201,6 +201,7 @@ class Mapper(Sequencer):
     class Visitor(ast.NodeVisitor):
       def __init__(self):
         self.fun = ''
+        self._id = 0
         return
       
       def visit_Lambda(self, node):
@@ -214,6 +215,9 @@ class Mapper(Sequencer):
         
         ast.NodeVisitor.generic_visit(self, node)
             
+      def visit_BinOp(self, node):
+        
+
       def visit_Call(self, node):
          print(help(node))
     

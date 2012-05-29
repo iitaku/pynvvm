@@ -1,1 +1,1 @@
-from xenodermus.sequencer import Composer, Mapper, Reducer
+from xenodermus.compiler import Composer, Mapper, Reducer

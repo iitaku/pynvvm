@@ -1,5 +1,6 @@
-import os
 import ctypes
+import os
+import sys
 
 class nvvmResult(ctypes.Structure):
   ( 
@@ -33,8 +34,17 @@ class nvvmCU(ctypes.Structure):
 class _nvvmInstance:
   def __init__(self):
     # initialize
+    
+    ext = ''
+    if 'darwin' == sys.platform:
+      ext = 'dylib'
+    elif 'windows' == sys.platform:
+      ext = 'dll'
+    else:
+      ext = 'so'
+    
     this_file = os.path.abspath(__file__)
-    dllfile = os.path.join(os.path.dirname(this_file), 'externals/LibNVVM/libnvvm.so')
+    dllfile = os.path.join(os.path.dirname(this_file), 'externals/LibNVVM/libnvvm.'+ext)
     self._dll = ctypes.CDLL(dllfile)
  
     self._dll.nvvmInit.restype = nvvmResult
