@@ -20,16 +20,26 @@ class PyLLVMArgument
 class PyLLVMArgumentList
 {
   public:
-    PyLLVMArgumentList(llvm::iplist<llvm::Argument> *obj_)
+    PyLLVMArgumentList(llvm::iplist<llvm::Argument>& obj)
     {
       llvm::iplist<llvm::Argument>::iterator iter;
-      for (iter = obj_->begin(); iter != obj_->end(); ++iter)
+      for (iter = obj.begin(); iter != obj.end(); ++iter)
       {
-        obj.push_back(new PyLLVMArgument(iter));
+        obj_.push_back(new PyLLVMArgument(iter));
       }
     }
 
-    std::vector<PyLLVMArgument*> obj;
+    unsigned size(void)
+    {
+      return static_cast<unsigned>(obj_.size());
+    }
+    
+    PyLLVMArgument *at(unsigned i)
+    {
+      return obj_.at(i);
+    }
+
+    std::vector<PyLLVMArgument*> obj_;
 };
 
 } /* namespace pyllvm */

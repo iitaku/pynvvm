@@ -9,10 +9,14 @@ namespace pyllvm {
 
 class PyLLVMContext;
 class PyLLVMFunction;
+class PyLLVMNamedMDNode;
 
 class PyLLVMModule
 {
   public:
+    static
+    PyLLVMModule *create(std::string id, PyLLVMContext *context);
+
     PyLLVMModule(llvm::Module* obj)
       : obj_(obj) {}
   
@@ -21,11 +25,11 @@ class PyLLVMModule
     void dump(void);
 
     PyLLVMFunction *get_function(std::string fun_name);
+ 
+    PyLLVMNamedMDNode *get_or_insert_named_metadata(std::string name);
   
     llvm::Module* obj_;
 };
-
-PyLLVMModule *create_module(std::string id, PyLLVMContext *context);
 
 } /* namespace pyllvm */
 
