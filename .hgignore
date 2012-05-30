@@ -1,5 +1,6 @@
 nvvm.h
-libnvvm.so
+.so
+.o
 .pyc
 .swp
 __pycache__

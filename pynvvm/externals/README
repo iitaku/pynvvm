@@ -1,0 +1,9 @@
+
+1. NVVM Libraries
+
+Download CUDA Compiler SDK (http://developer.nvidia.com/user/register) and place header and library files into nvvm directory
+
+2. LLVM Libraries
+
+ place core and BitWriter lib into llvm directory
+

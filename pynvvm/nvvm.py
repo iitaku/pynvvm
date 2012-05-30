@@ -44,7 +44,7 @@ class _nvvmInstance:
       ext = 'so'
     
     this_file = os.path.abspath(__file__)
-    dllfile = os.path.join(os.path.dirname(this_file), 'externals/LibNVVM/libnvvm.'+ext)
+    dllfile = os.path.join(os.path.dirname(this_file), 'externals/nvvm/libnvvm.'+ext)
     self._dll = ctypes.CDLL(dllfile)
  
     self._dll.nvvmInit.restype = nvvmResult

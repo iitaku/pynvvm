@@ -2,12 +2,12 @@ import ast
 import inspect
 import sys
 from string import Template
-
 #import pycuda.autoinit
 #import pycuda.driver as drv
 import numpy
 
 from . import nvvm
+from . import llvm
 
 class ASTTraverser(ast.NodeVisitor):
   
@@ -17,6 +17,12 @@ class ASTTraverser(ast.NodeVisitor):
 
 #end class ASTTraverser
 
+def test(a, b, c):
+  c[0] = a[0] + b[0]
+
+def compile(fun):
+  ASTTraverser().visit(ast.parse(inspect.getsource(fun)))
+  return test
 
 class LambdaExtractor(ast.NodeVisitor):
 
@@ -216,7 +222,7 @@ class Mapper(Sequencer):
         ast.NodeVisitor.generic_visit(self, node)
             
       def visit_BinOp(self, node):
-        
+        pass 
 
       def visit_Call(self, node):
          print(help(node))

@@ -1,21 +1,36 @@
 import math
 import numpy
-from xenodermus import Composer, Mapper, Reducer
+#from pynvvm import kernel, blockIdx, blockDim, threadIdx
+from pynvvm import kernel
 
-def main():
-  #m = Mapper(lambda x : math.sqrt(x + 1))
-  m = Mapper(lambda x : math.sqrt(x + 1))
-  r = Reducer(lambda x, y : x if x < y else y)
-  c = Composer([m, r])
-  
-  incoming = numpy.array([1.0, 2.0, 3.0]).astype(numpy.float32)
-  outgoing = c.run(incoming)
-  print(incoming)
-  print(outgoing)
+#def main():
+#  #m = Mapper(lambda x : math.sqrt(x + 1))
+#  m = Mapper(lambda x : math.sqrt(x + 1))
+#  r = Reducer(lambda x, y : x if x < y else y)
+#  c = Composer([m, r])
+#  
+#  incoming = numpy.array([1.0, 2.0, 3.0]).astype(numpy.float32)
+#  outgoing = c.run(incoming)
+#  print(incoming)
+#  print(outgoing)
+#
+#if __name__ == '__main__':
+#  main()
 
-if __name__ == '__main__':
-  main()
-  
+@kernel
+def vec_add(a, b, c):
+  i = blockIdx.x * blockDim.x + threadIdx.x
+  c[i] = a[i] + b[i]
+  return
+
+a = numpy.array([1.0, 2.0, 3.0]).astype(numpy.float32)
+b = numpy.array([1.0, 2.0, 3.0]).astype(numpy.float32)
+c = numpy.zeros(3).astype(numpy.float32)
+
+vec_add(a, b, c)
+
+print(c)
+
 #import pycuda.autoinit
 #import pycuda.driver as drv
 #import numpy
