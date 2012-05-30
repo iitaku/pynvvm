@@ -15,13 +15,13 @@ class PyLLVMModule;
 class PyLLVMFunction
 {
   public:
+    static
+    PyLLVMFunction *create(PyLLVMFunctionType *function_type, PyLLVMLinkageTypes linkage_type, std::string name, PyLLVMModule *module);
+
     PyLLVMFunction(llvm::Function* obj)
       : obj_(obj) {}
 
     PyLLVMFunctionType *get_function_type(void);
-
-    static
-    PyLLVMFunction *create(PyLLVMFunctionType *function_type, PyLLVMLinkageTypes linkage_type, std::string name, PyLLVMModule *module);
     
     llvm::Function *obj_;
 };

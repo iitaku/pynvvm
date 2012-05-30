@@ -23,11 +23,11 @@
 #include <vector>
 #include <sstream>
 
+#include "pyllvm-argument.h"
 #include "pyllvm-builder.h"
 #include "pyllvm-context.h"
 #include "pyllvm-module.h"
 #include "pyllvm-function.h"
-#include "pyllvm-function-type.h"
 #include "pyllvm-type.h"
 
 #include "pyllvm.h"
@@ -42,7 +42,13 @@ BOOST_PYTHON_MODULE(pyllvm)
   py::enum_<PyLLVMLinkageTypes>("linkage_type")
     .value("ExternalLinkage", llvm::GlobalValue::ExternalLinkage)
   ;
-   
+    
+  /* Argument */
+  py::class_<PyLLVMArgument>("argument", py::init<llvm::Argument*>());
+  
+  /* ArgumentList */
+  py::class_<PyLLVMArgument>("argument", py::init<llvm::Argument*>());
+
   /* Builder */
   py::def("create_builder", &pyllvm::create_builder, py::return_value_policy<py::manage_new_object>());
   py::class_<PyLLVMBuilder>("builder", py::init<llvm::IRBuilder<>*>());
@@ -70,10 +76,18 @@ BOOST_PYTHON_MODULE(pyllvm)
     .def("get_function", &PyLLVMModule::get_function, py::return_value_policy<py::manage_new_object>())
   ;
   
+  /* PointerType*/
+  py::class_<PyLLVMPointerType>("pointer_type", py::init<llvm::PointerType*>())
+    .def("get", &PyLLVMPointerType::get, py::return_value_policy<py::manage_new_object>())
+    .staticmethod("get")
+  ;
+
   /* Type */
   py::class_<PyLLVMType>("type", py::init<llvm::Type*>())
     .def("get_int32_ty", &PyLLVMType::get_int32_ty, py::return_value_policy<py::manage_new_object>())
     .staticmethod("get_int32_ty")
+    .def("get_void_ty", &PyLLVMType::get_void_ty, py::return_value_policy<py::manage_new_object>())
+    .staticmethod("get_void_ty")
   ;
 }
 
