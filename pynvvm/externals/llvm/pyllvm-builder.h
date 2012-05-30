@@ -3,12 +3,14 @@
 
 #include <llvm/Support/IRBuilder.h>
 
+#include "pyllvm-type.h"
+#include "pyllvm-value.h"
+
 namespace pyllvm {
 
 class PyLLVMArgument;
 class PyLLVMBasicBlock;
 class PyLLVMContext;
-class PyLLVMValue;
 class PyLLVMValueList;
 
 class PyLLVMBuilder
@@ -29,9 +31,43 @@ class PyLLVMBuilder
     
     PyLLVMValue *create_load(PyLLVMValue *ptr);
     
-    PyLLVMValue *create_store(PyLLVMValue *value, PyLLVMValue *ptr);
+    PyLLVMValue *create_store(PyLLVMValue *val, PyLLVMValue *ptr);
+     
+    PyLLVMValue *create_fadd(PyLLVMValue *l, PyLLVMValue *r, std::string id)
+    {
+      return new PyLLVMValue(obj_->CreateFAdd(l->obj_, r->obj_, id));
+    }
+
+    PyLLVMValue *create_fsub(PyLLVMValue *l, PyLLVMValue *r, std::string id)
+    {
+      return new PyLLVMValue(obj_->CreateFSub(l->obj_, r->obj_, id));
+    }
     
-    void create_ret_void(void);
+    PyLLVMValue *create_fmul(PyLLVMValue *l, PyLLVMValue *r, std::string id)
+    {
+      return new PyLLVMValue(obj_->CreateFMul(l->obj_, r->obj_, id));
+    }
+    
+    PyLLVMValue *create_fcmp_ult(PyLLVMValue *l, PyLLVMValue *r, std::string id)
+    {
+      return new PyLLVMValue(obj_->CreateFCmpULT(l->obj_, r->obj_, id));
+    }
+ 
+    PyLLVMValue *create_ui_to_fp(PyLLVMValue *val, PyLLVMType *type, std::string id)
+    {
+      return new PyLLVMValue(obj_->CreateUIToFP(val->obj_, type->obj_, id));
+    }
+
+    PyLLVMValue *create_ret(PyLLVMValue *val)
+    {
+      return new PyLLVMValue(obj_->CreateRet(val->obj_));
+    }
+
+    void create_ret_void(void)
+    {
+      obj_->CreateRetVoid();
+      return;
+    }
 
     llvm::IRBuilder<> *obj_;
 };

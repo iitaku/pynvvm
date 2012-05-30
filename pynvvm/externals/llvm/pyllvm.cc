@@ -74,6 +74,12 @@ BOOST_PYTHON_MODULE(pyllvm)
     .def("create_gep", &PyLLVMBuilder::create_gep, bp::return_value_policy<bp::manage_new_object>())
     .def("create_load", &PyLLVMBuilder::create_load, bp::return_value_policy<bp::manage_new_object>())
     .def("create_store", &PyLLVMBuilder::create_store, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_fadd", &PyLLVMBuilder::create_fadd, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_fsub", &PyLLVMBuilder::create_fsub, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_fmul", &PyLLVMBuilder::create_fmul, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_fcmp_ult", &PyLLVMBuilder::create_fcmp_ult, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_ui_to_fp", &PyLLVMBuilder::create_ui_to_fp, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_create_ret", &PyLLVMBuilder::create_ret, bp::return_value_policy<bp::manage_new_object>())
     .def("create_ret_void", &PyLLVMBuilder::create_ret_void)
   ;
 

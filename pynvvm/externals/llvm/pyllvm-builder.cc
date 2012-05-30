@@ -51,10 +51,4 @@ PyLLVMValue *PyLLVMBuilder::create_store(PyLLVMValue *value, PyLLVMValue *ptr)
   return new PyLLVMValue(obj_->CreateStore(value->obj_, ptr->obj_));
 }
 
-void PyLLVMBuilder::create_ret_void(void)
-{
-  obj_->CreateRetVoid();
-  return;
-}
-
 } /* namepsace pyllvm */
