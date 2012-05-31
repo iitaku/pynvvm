@@ -1,5 +1,5 @@
 import math
-import numpy
+import numpy as np
 #from pynvvm import kernel, blockIdx, blockDim, threadIdx
 from pynvvm import kernel
 
@@ -17,15 +17,15 @@ from pynvvm import kernel
 #if __name__ == '__main__':
 #  main()
 
-@kernel
+@kernel(np.float32, np.float32, np.float32)
 def vec_add(a, b, c):
   i = blockIdx.x * blockDim.x + threadIdx.x
   c[i] = a[i] + b[i]
   return
 
-a = numpy.array([1.0, 2.0, 3.0]).astype(numpy.float32)
-b = numpy.array([1.0, 2.0, 3.0]).astype(numpy.float32)
-c = numpy.zeros(3).astype(numpy.float32)
+a = np.array([1.0, 2.0, 3.0]).astype(np.float32)
+b = np.array([1.0, 2.0, 3.0]).astype(np.float32)
+c = np.zeros(3).astype(np.float32)
 
 vec_add(a, b, c)
 

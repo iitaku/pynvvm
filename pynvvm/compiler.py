@@ -12,7 +12,7 @@ from . import llvm
 class ASTTraverser(ast.NodeVisitor):
   
   def generic_visit(self, node):
-    print('%10s : %s' % (type(node).__name__, str(node.__dict__)))
+    print('%40s : %s' % (node, str(node.__dict__)))
     ast.NodeVisitor.generic_visit(self, node)
 
 #end class ASTTraverser
@@ -20,7 +20,7 @@ class ASTTraverser(ast.NodeVisitor):
 def test(a, b, c):
   c[0] = a[0] + b[0]
 
-def compile(fun):
+def compile(fun, *args):
   ASTTraverser().visit(ast.parse(inspect.getsource(fun)))
   return test
 
