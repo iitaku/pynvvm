@@ -1,1 +1,2 @@
-from pynvvm.interface import *
+from . import kernel
+from . import nvtype

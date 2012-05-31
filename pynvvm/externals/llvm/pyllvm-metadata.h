@@ -2,6 +2,7 @@
 #define PYLLVM_METADATA_H
 
 #include <string>
+#include <vector>
 
 #include <llvm/Metadata.h>
 
@@ -30,7 +31,8 @@ class PyLLVMMDNode : public PyLLVMValue
       : PyLLVMValue(obj), obj_(obj) {}
 
     static
-    PyLLVMMDNode *get(PyLLVMContext *context, PyLLVMValueList *value_list);
+    //PyLLVMMDNode *get(PyLLVMContext *context, PyLLVMValueList *value_list);
+    PyLLVMMDNode *get(PyLLVMContext *context, std::vector<PyLLVMValue *> values);
 
     llvm::MDNode *obj_;
 };

@@ -6,40 +6,23 @@
 #include <llvm/Argument.h>
 #include <llvm/Function.h>
 
+#include "pyllvm-value.h"
+
 namespace pyllvm {
 
-class PyLLVMArgument
+class PyLLVMArgument : public PyLLVMValue
 {
   public:
     PyLLVMArgument(llvm::Argument* obj)
-      : obj_(obj) {}
+      : PyLLVMValue(obj), obj_(obj) {}
 
-    llvm::Argument *obj_;
-};
-
-class PyLLVMArgumentList
-{
-  public:
-    PyLLVMArgumentList(llvm::iplist<llvm::Argument>& obj)
+    void set_name(std::string id)
     {
-      llvm::iplist<llvm::Argument>::iterator iter;
-      for (iter = obj.begin(); iter != obj.end(); ++iter)
-      {
-        obj_.push_back(new PyLLVMArgument(iter));
-      }
-    }
-
-    unsigned size(void)
-    {
-      return static_cast<unsigned>(obj_.size());
+      obj_->setName(id);
+      return;
     }
     
-    PyLLVMArgument *at(unsigned i)
-    {
-      return obj_.at(i);
-    }
-
-    std::vector<PyLLVMArgument*> obj_;
+    llvm::Argument *obj_;
 };
 
 } /* namespace pyllvm */

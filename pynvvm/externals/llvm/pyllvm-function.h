@@ -25,8 +25,19 @@ class PyLLVMFunction : public PyLLVMValue
 
     PyLLVMFunctionType *get_function_type(void);
  
-    PyLLVMArgumentList *get_argument_list(void);
-         
+    std::vector<PyLLVMArgument*> get_arguments(void);
+
+    std::string get_name(void)
+    {
+      return obj_->getName();
+    }
+  
+    void erase_from_parent(void)
+    {
+      obj_->eraseFromParent();
+      return;
+    }
+        
     llvm::Function *obj_;
 
     //PyLLVMArgumentList argument_list_;

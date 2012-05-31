@@ -1,4 +1,6 @@
 
+#include <vector>
+
 #include "pyllvm-argument.h"
 #include "pyllvm-basicblock.h"
 #include "pyllvm-builder.h"
@@ -19,26 +21,20 @@ void PyLLVMBuilder::set_insert_point(PyLLVMBasicBlock *bb)
   return;
 }
 
-PyLLVMValue *PyLLVMBuilder::create_call(PyLLVMFunction *function, PyLLVMValueList *value_list, std::string id)
+PyLLVMValue *PyLLVMBuilder::create_call(PyLLVMFunction *function, std::vector<PyLLVMValue *> values, std::string id)
 {
-  std::vector<llvm::Value*> value_list_;
-  for (unsigned i=0; i<value_list->obj_.size(); ++i)
+  std::vector<llvm::Value*> values_;
+  for (unsigned i=0; i<values.size(); ++i)
   {
-    value_list_.push_back(value_list->obj_.at(i)->obj_);
+    values_.push_back(values.at(i)->obj_);
   }
 
-  return new PyLLVMValue(obj_->CreateCall(function->obj_, value_list_, id));
+  return new PyLLVMValue(obj_->CreateCall(function->obj_, values_, id));
 }
 
-PyLLVMValue *PyLLVMBuilder::create_gep(PyLLVMValue *value, PyLLVMValueList *value_list, std::string id)
+PyLLVMValue *PyLLVMBuilder::create_gep(PyLLVMValue *ptr, PyLLVMValue *index, std::string id)
 {
-  std::vector<llvm::Value*> value_list_;
-  for (unsigned i=0; i<value_list->obj_.size(); ++i)
-  {
-    value_list_.push_back(value_list->obj_.at(i)->obj_);
-  }
-
-  return new PyLLVMValue(obj_->CreateGEP(value->obj_, value_list_, id));
+  return new PyLLVMValue(obj_->CreateGEP(ptr->obj_, index->obj_, id));
 }
 
 PyLLVMValue *PyLLVMBuilder::create_load(PyLLVMValue *ptr)

@@ -17,10 +17,14 @@ import pynvvm
 #if __name__ == '__main__':
 #  main()
 
-@pynvvm.kernel(pynvvm.ndarray(np.float32), pynvvm.ndarray(np.float32), pynvvm.ndarray(np.float32))
+@pynvvm.kernel.kernel(pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.array(pynvvm.nvtype.float32))
 def vec_add(a, b, c):
-  i = blockIdx.x * blockDim.x + threadIdx.x
-  c[i] = a[i] + b[i]
+  i = pynvvm_ctaid_x() * pynvvm_ntid_x() + pynvvm_tid_x()
+  if (0 == i % 2):
+    c[i] = a[i] + b[i]
+  else:
+    c[i] = a[i] - b[i]
+    
   return
 
 a = np.array([1.0, 2.0, 3.0]).astype(np.float32)

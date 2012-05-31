@@ -1,3 +1,5 @@
+# 型推論でスコープが適切に実装されていない
+
 import ast
 import inspect
 import sys
@@ -7,35 +9,290 @@ from string import Template
 import numpy
 
 from . import nvvm
-from . import llvm
+from . import nvtype
+from .externals.llvm import pyllvm
+
+_builtin_types = {
+  'pynvvm_sqrt_f32':(nvtype.float32, (nvtype.float32)),
+  'pynvvm_sqrt_f64':(nvtype.float64, (nvtype.float64)),
+  'pynvvm_fma_f32':(nvtype.float32, (nvtype.float32)),
+  'pynvvm_fma_f64':(nvtype.float64, (nvtype.float64)),
+  'pynvvm_bswap_i16':(nvtype.int16, (nvtype.int16)),
+  'pynvvm_bswap_i32':(nvtype.int32, (nvtype.int32)),
+  'pynvvm_bswap_i64':(nvtype.int64, (nvtype.int64)),
+  'pynvvm_ctpop_i8' :(nvtype.int8,  (nvtype.int8)),
+  'pynvvm_ctpop_i16':(nvtype.int16, (nvtype.int16)),
+  'pynvvm_ctpop_i32':(nvtype.int32, (nvtype.int32)),
+  'pynvvm_ctpop_i64':(nvtype.int64, (nvtype.int64)),
+  'pynvvm_ctlz_i8' :(nvtype.int8,  (nvtype.int8)),
+  'pynvvm_ctlz_i16':(nvtype.int16, (nvtype.int16)),
+  'pynvvm_ctlz_i32':(nvtype.int32, (nvtype.int32)),
+  'pynvvm_ctlz_i64':(nvtype.int64, (nvtype.int64)),
+  'pynvvm_cttz_i8' :(nvtype.int8,  (nvtype.int8)),
+  'pynvvm_cttz_i16':(nvtype.int16, (nvtype.int16)),
+  'pynvvm_cttz_i32':(nvtype.int32, (nvtype.int32)),
+  'pynvvm_cttz_i64':(nvtype.int64, (nvtype.int64)),
+  'pynvvm_tid_x':(nvtype.int32, ()),
+  'pynvvm_tid_y':(nvtype.int32, ()),
+  'pynvvm_tid_z':(nvtype.int32, ()),
+  'pynvvm_ntid_x':(nvtype.int32, ()),
+  'pynvvm_ntid_y':(nvtype.int32, ()),
+  'pynvvm_ntid_z':(nvtype.int32, ()),
+  'pynvvm_ctaid_x':(nvtype.int32, ()),
+  'pynvvm_ctaid_y':(nvtype.int32, ()),
+  'pynvvm_ctaid_z':(nvtype.int32, ()),
+  'pynvvm_nctaid_x':(nvtype.int32, ()),
+  'pynvvm_nctaid_y':(nvtype.int32, ()),
+  'pynvvm_nctaid_z':(nvtype.int32, ()),
+}
+
+_builtin_codes = '''
+define linkonce_odr float @pynvvm_sqrt_f32(float &x) {
+  %y = call float @llvm.sqrt.f32()
+  ret float %y
+}
+
+define linkonce_odr double @pynvvm_sqrt_f64(double &x) {
+  %y = call float @llvm.sqrt.f64()
+  ret double %y
+}
+
+define linkonce_odr float @pynvvm_fma_f32(float &x) {
+  %y = call float @llvm.fma.f32()
+  ret float %y
+}
+
+define linkonce_odr double @pynvvm_fma_f64(double &x) {
+  %y = call float @llvm.fma.f64()
+  ret double %y
+}
+
+define linkonce_odr i16 @pynvvm_bswap_i16(i16 &x) {
+  %y = call i16 @llvm.bswap.i16()
+  ret i16 %y
+}
+
+define linkonce_odr i32 @pynvvm_bswap_i32(i32 &x) {
+  %y = call i32 @llvm.bswap.i32()
+  ret i32 %y
+}
+
+define linkonce_odr i64 @pynvvm_bswap_i64(i64 &x) {
+  %y = call i64 @llvm.bswap.i64()
+  ret i64 %y
+}
+
+define linkonce_odr i8 @pynvvm_ctpop_i8(i8 &x) {
+  %y = call i8 @llvm.ctpop.i8()
+  ret i8 %y
+}
+
+define linkonce_odr i16 @pynvvm_ctpop_i16(i16 &x) {
+  %y = call i16 @llvm.ctpop.i16()
+  ret i16 %y
+}
+
+define linkonce_odr i32 @pynvvm_ctpop_i32(i32 &x) {
+  %y = call i32 @llvm.ctpop.i32()
+  ret i32 %y
+}
+
+define linkonce_odr i64 @pynvvm_ctpop_i64(i64 &x) {
+  %y = call i64 @llvm.ctpop.i64()
+  ret i64 %y
+}
+
+define linkonce_odr i8 @pynvvm_ctlz_i8(i8 &x) {
+  %y = call i8 @llvm.ctlz.i8()
+  ret i8 %y
+}
+
+define linkonce_odr i16 @pynvvm_ctlz_i16(i16 &x) {
+  %y = call i16 @llvm.ctlz.i16()
+  ret i16 %y
+}
+
+define linkonce_odr i32 @pynvvm_ctlz_i32(i32 &x) {
+  %y = call i32 @llvm.ctlz.i32()
+  ret i32 %y
+}
+
+define linkonce_odr i64 @pynvvm_ctlz_i64(i64 &x) {
+  %y = call i64 @llvm.ctlz.i64()
+  ret i64 %y
+}
+
+define linkonce_odr i8 @pynvvm_cttz_i8(i8 &x) {
+  %y = call i8 @llvm.cttz.i8()
+  ret i8 %y
+}
+
+define linkonce_odr i16 @pynvvm_cttz_i16(i16 &x) {
+  %y = call i16 @llvm.cttz.i16()
+  ret i16 %y
+}
+
+define linkonce_odr i32 @pynvvm_cttz_i32(i32 &x) {
+  %y = call i32 @llvm.cttz.i32()
+  ret i32 %y
+}
+
+define linkonce_odr i64 @pynvvm_cttz_i64(i64 &x) {
+  %y = call i64 @llvm.cttz.i64()
+  ret i64 %y
+}
+
+define linkonce_odr i32 @pynvvm_tid_x() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
+  ret i32 %a
+}
+
+define linkonce_odr i32 @pynvvm_tid_y() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.tid.y()
+  ret i32 %a
+}
+
+define linkonce_odr i32 @pynvvm_tid_z() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.tid.z()
+  ret i32 %a
+}
+
+define linkonce_odr i32 @pynvvm_ntid_x() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
+  ret i32 %a
+}
+
+define linkonce_odr i32 @pynvvm_ntid_y() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.ntid.y()
+  ret i32 %a
+}
+
+define linkonce_odr i32 @pynvvm_ntid_z() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.ntid.z()
+  ret i32 %a
+}
+
+define linkonce_odr i32 @pynvvm_ctaid_x() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
+  ret i32 %a
+}
+
+define linkonce_odr i32 @pynvvm_ctaid_y() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.ctaid.y()
+  ret i32 %a
+}
+
+define linkonce_odr i32 @pynvvm_ctaid_z() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.ctaid.z()
+  ret i32 %a
+}
+
+define linkonce_odr i32 @pynvvm_nctaid_x() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.nctaid.x()
+  ret i32 %a
+}
+
+define linkonce_odr i32 @pynvvm_nctaid_y() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.nctaid.y()
+  ret i32 %a
+}
+
+define linkonce_odr i32 @pynvvm_nctaid_z() {
+  %a = call i32 @llvm.nvvm.read.ptx.sreg.nctaid.z()
+  ret i32 %a
+}
+
+define linkonce_odr void @pynvvm_sync() {
+  call void @llvm.cuda.syncthreads()
+  ret void
+}
+
+declare float  @llvm.sqrt.f32(float)
+declare double @llvm.sqrt.f64(double)
+
+declare float  @llvm.fma.f32(float)
+declare double @llvm.fma.f64(double)
+
+declare i16 @llvm.bswap.i16(i16)
+declare i32 @llvm.bswap.i32(i32)
+declare i64 @llvm.bswap.f64(i64)
+
+declare i8  @llvm.ctpop.i8(i8)
+declare i16 @llvm.ctpop.i16(i16)
+declare i32 @llvm.ctpop.i32(i32)
+declare i64 @llvm.ctpop.f64(i64)
+
+declare i8  @llvm.ctlz.i8(i8)
+declare i16 @llvm.ctlz.i16(i16)
+declare i32 @llvm.ctlz.i32(i32)
+declare i64 @llvm.ctlz.f64(i64)
+
+declare i8  @llvm.cttz.i8(i8)
+declare i16 @llvm.cttz.i16(i16)
+declare i32 @llvm.cttz.i32(i32)
+declare i64 @llvm.cttz.f64(i64)
+
+declare i32 @llvm.nvvm.read.ptx.sreg.tid.x()
+declare i32 @llvm.nvvm.read.ptx.sreg.tid.y()
+declare i32 @llvm.nvvm.read.ptx.sreg.tid.z()
+
+declare i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
+declare i32 @llvm.nvvm.read.ptx.sreg.ntid.y()
+declare i32 @llvm.nvvm.read.ptx.sreg.ntid.z()
+
+declare i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
+declare i32 @llvm.nvvm.read.ptx.sreg.ctaid.y()
+declare i32 @llvm.nvvm.read.ptx.sreg.ctaid.z()
+
+declare i32 @llvm.nvvm.read.ptx.sreg.nctaid.x()
+declare i32 @llvm.nvvm.read.ptx.sreg.nctaid.y()
+declare i32 @llvm.nvvm.read.ptx.sreg.nctaid.z()
+
+declare void @llvm.cuda.syncthreads()
+'''
 
 class ASTTraverser(ast.NodeVisitor):
   
   def generic_visit(self, node):
-    print('%40s : %s' % (node, str(node.__dict__)))
+    #print('%40s : %s' % (node, str(node.__dict__)))
+    if node.__dict__.has_key('type'):
+      print('%20s : %s' % (node.type, type(node).__name__))
+    else:
+      print('%20s : %s' % ('', type(node).__name__))
+    #print('%12s : %s' % (type(node).__name__, str(node.__dict__)))
     ast.NodeVisitor.generic_visit(self, node)
 
 #end class ASTTraverser
 
-def test(a, b, c):
-  c[0] = a[0] + b[0]
-
-def compile(fun, *args):
-  
-  kernel_ast = ast.parse(inspect.getsource(fun))
-  
-  class ArgCheck(ast.NodeVisitor):
+def compile_ast(tree, *arg_types):
+  class Checker(ast.NodeVisitor):
+    def __init__(self):
+      self.is_visited_functiondef = False
+    
     def generic_visit(self, node):
       ast.NodeVisitor.generic_visit(self, node)
     
     def visit_FunctionDef(self, node):
+      if self.is_visited_functiondef:
+        raise Exception, 'error : nested function definition'
+      else:
+        self.is_visited_functiondef = True
       self.args = node.args.args
-      if not len(args) == (len(node.args.args)):
+      if not len(arg_types) == (len(node.args.args)):
         raise Exception, 'error : invalid kernel argument number'
-  # class ArgCheck
+    
+    def visit_Assign(self, node):
+      if not 1 == len(node.targets):
+        raise Exception, 'error : tuppled lvalue'
 
-  check = ArgCheck()
-  check.visit(kernel_ast)
+    def visit_Comparator(self, node):
+      if len(node.comparators):
+        raise Exception, 'error : multiple comparators expr'
+   
+   # class Checker
+
+  check = Checker()
+  check.visit(tree)
 
   class NameTracker(ast.NodeVisitor):
     def __init__(self):
@@ -48,8 +305,8 @@ def compile(fun, *args):
 
   class IOTracker(ast.NodeVisitor):
     (i, o, io) = (0x1, 0x2, 0x3)
-    def __init__(self, args_name):
-      self.args_iomap = { arg_name:0x0 for arg_name in args_name }
+    def __init__(self, arg_names):
+      self.args_iomap = { arg_name:0x0 for arg_name in arg_names }
     def generic_visit(self, node):
       ast.NodeVisitor.generic_visit(self, node)
     def visit_Assign(self, node):
@@ -67,11 +324,232 @@ def compile(fun, *args):
   
   # end class IOTracker 
   
-  args_name = map(lambda x : x.id, check.args)
-  io_track = IOTracker(args_name)
-  io_track.visit(kernel_ast)
-  print(io_track.args_iomap)
-  return test
+  arg_names = map(lambda x : x.id, check.args)
+  io_track = IOTracker(arg_names)
+  io_track.visit(tree)
+
+  class TypeInferencer(ast.NodeTransformer):
+    def __init__(self, arg_nametypes):
+      self.env_nametypes = arg_nametypes
+
+    def generic_visit(self, node):
+      return ast.NodeTransformer.generic_visit(self, node)
+  
+    def visit_FunctionDef(self, node):
+      for i, body in enumerate(node.body):
+        node.body[i] = self.visit(body)
+      return node
+
+    def visit_Assign(self, node):
+      node.targets[0] = self.visit(node.targets[0])
+      node.value = self.visit(node.value)
+      
+      if None == node.value.type and None == node.targets[0].type:
+        raise Exception, 'error : failed type inference'
+      
+      if None == node.targets[0].type:
+       self.env_nametypes[node.targets[0].id] = node.targets[0].type = node.value.type
+      
+      node.type = node.value.type
+      
+      return node
+
+    def visit_Compare(self, node):
+      node.left = self.visit(node.left)
+      print(ast.dump(node.comparators[0]))
+      node.comparators[0] = self.visit(node.comparators[0])
+     
+      print('%s : %s' % (node.left.type, node.comparators[0].type))
+      if not node.left.type == node.comparators[0].type:
+        raise Exception, 'error : mismatched type'
+
+      return node
+    
+    def visit_Name(self, node):
+      node.type = self.env_nametypes.get(node.id, None)
+      return self.generic_visit(node)
+
+    def visit_Call(self, node):
+      
+      for i, arg in enumerate(node.args):
+        node.args[i] = self.visit(arg)
+      
+      if not isinstance(node.func, ast.Name):
+        raise Exception, 'error : attribute function call'
+      
+      ret_type, arg_types = _builtin_types.get(node.func.id, (None, None))
+      if (None, None) == (ret_type, arg_types):
+        raise Exception, 'error : unknown function call'
+      
+      if not len(arg_types) == len(node.args):
+        raise Exception, 'error : invalid function call'
+      
+      for i, arg in enumerate(node.args):
+        if not isinstance(arg.type, arg_types[i]):
+          raise Exception, 'error : invalid function argument'
+      
+      node.type = ret_type
+      
+      return node
+    
+    def visit_Subscript(self, node):
+      node.value = self.visit(node.value)
+      node.slice = self.visit(node.slice)
+      
+      if not isinstance(node.value.type, nvtype.array):
+        raise Exception, 'error : invalid subscript'
+      
+      node.type = node.value.type.dtype
+     
+      return node
+
+    def visit_BinOp(self, node):
+      node.left = self.visit(node.left)
+      node.right = self.visit(node.right)
+  
+      print('%s : %s' % (node.left.type, node.right.type))
+      if not node.left.type == node.right.type:
+        raise Exception, 'error : mismatched type'
+
+      if None == node.left.type and None == node.right.type:
+        raise Exception, 'error : failed type infererence'
+
+      node.type = node.left.type
+      
+      return node
+
+    def visit_Num(self, node):
+      #print(ast.dump(node))
+      if float == type(node.n):
+        node.type = nvtype.float32
+      elif int == type(node.n):
+        node.type = nvtype.int32
+      else:
+        raise Exception, 'error : invalid number'
+      return node
+
+  # end class TypeInferencer
+
+  arg_nametypes = dict(zip(arg_names, arg_types))
+  typeinfer = TypeInferencer(arg_nametypes)
+  tree = typeinfer.visit(tree)
+
+  class CodeGenerator(ast.NodeVisitor):
+    def __init__(self, arg_types):
+      self.context = pyllvm.get_global_context()
+      self.builder = pyllvm.builder.create(self.context)
+      self.module = pyllvm.module.create('pynvvm_module', self.context)
+      self.env = dict()
+      self.arg_types = arg_types
+    
+    def generic_visit(self, node):
+      ast.NodeVisitor.generic_visit(self, node)
+     
+    def visit_FunctionDef(self, node):
+      llarg_tys = [arg_type.typefun()(self.context) for arg_type in self.arg_types]
+      llret_ty = pyllvm.type.get_void_ty(self.context)
+      fun_ty = pyllvm.function_type.get(llret_ty, llarg_tys, False)
+      fun = pyllvm.function.create(fun_ty, pyllvm.linkage_type.external_linkage, 'stub', self.module)
+
+      args = fun.get_arguments()
+      for i, arg_name in enumerate(arg_names):
+        args[i].set_name(arg_name)
+        self.env[arg_name] = args[i]
+      
+      bb = pyllvm.basic_block.create(self.context, 'entry', fun)
+      
+      self.builder.set_insert_point(bb)
+      
+      ast.NodeVisitor.generic_visit(self, node)
+
+      pass
+
+    def visit_Assign(self, node):
+      #print(ast.dump(node))
+      #print('')
+      
+      self.visit(node.targets[0])
+      self.visit(node.value)
+      #ast.NodeVisitor.generic_visit(self, node)
+      pass
+     
+    def visit_BinOp(self, node):
+      ast.NodeVisitor.generic_visit(self, node)
+      pass
+  
+    def visit_Call(self, node):
+      ast.NodeVisitor.generic_visit(self, node)
+      pass
+   
+    def visit_Compare(self, node):
+      ast.NodeVisitor.generic_visit(self, node)
+      pass
+ 
+    def visit_If(self, node):
+      ast.NodeVisitor.generic_visit(self, node)
+      pass
+ 
+    def visit_Index(self, node):
+      ast.NodeVisitor.generic_visit(self, node)
+      pass
+
+    def visit_Subscript(self, node):
+      #print(ast.dump(node))
+      #print('')
+      ast.NodeVisitor.generic_visit(self, node)
+      pass
+ 
+    def visit_Name(self, node):
+      pass
+
+    def visit_Add(self, node):
+      pass
+    
+    def visit_Sub(self, node):
+      pass
+
+    def visit_Mult(self, node):
+      pass
+    
+    def visit_Div(self, node):
+      pass
+
+    def visit_Mod(self, node):
+      pass
+  # end class CodeGenerator
+
+  ASTTraverser().visit(tree)
+
+  codegen = CodeGenerator(arg_types)
+  codegen.visit(tree)
+  codegen.module.dump()
+
+  llcode = ''
+  
+  return llcode, io_track.args_iomap
+
+def compile_nvvm(llcode):
+  return
+
+def create_function(ptxcode):
+  return
+
+def test(a, b, c):
+  c[0] = a[0] + b[0]
+
+def compile(fun, *args):
+  
+  tree = ast.parse(inspect.getsource(fun))
+
+  (llcode, iomap) = compile_ast(tree, *args)
+
+  ptxcode = compile_nvvm(llcode)
+
+  #gpu_fun = create_function(ptxcode, iomap)
+  
+  gpu_fun = test
+  
+  return gpu_fun
 
 class LambdaExtractor(ast.NodeVisitor):
 

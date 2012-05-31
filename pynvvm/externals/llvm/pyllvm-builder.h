@@ -1,6 +1,8 @@
 #ifndef PYLLVM_BUILDER_H
 #define PYLLVM_BUILDER_H
 
+#include <vector>
+
 #include <llvm/Support/IRBuilder.h>
 
 #include "pyllvm-type.h"
@@ -11,7 +13,6 @@ namespace pyllvm {
 class PyLLVMArgument;
 class PyLLVMBasicBlock;
 class PyLLVMContext;
-class PyLLVMValueList;
 
 class PyLLVMBuilder
 {
@@ -25,9 +26,9 @@ class PyLLVMBuilder
 
     void set_insert_point(PyLLVMBasicBlock *bb);
 
-    PyLLVMValue *create_call(PyLLVMFunction *function, PyLLVMValueList *value_list, std::string id);
+    PyLLVMValue *create_call(PyLLVMFunction *function, std::vector<PyLLVMValue* > values, std::string id);
 
-    PyLLVMValue *create_gep(PyLLVMValue *value, PyLLVMValueList *value_list, std::string id);
+    PyLLVMValue *create_gep(PyLLVMValue *ptr, PyLLVMValue *index, std::string id);
     
     PyLLVMValue *create_load(PyLLVMValue *ptr);
     

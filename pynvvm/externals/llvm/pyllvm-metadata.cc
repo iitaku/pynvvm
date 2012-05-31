@@ -11,14 +11,15 @@ PyLLVMMDString *PyLLVMMDString::get(PyLLVMContext *context, std::string id)
   return new PyLLVMMDString(llvm::MDString::get(context->obj_, id));
 }
 
-PyLLVMMDNode *PyLLVMMDNode::get(PyLLVMContext *context, PyLLVMValueList *value_list)
+PyLLVMMDNode *PyLLVMMDNode::get(PyLLVMContext *context, std::vector<PyLLVMValue *> values)
 {
-  std::vector<llvm::Value *> value_list_;
-  for (unsigned i=0; i<value_list->size(); ++i)
+  std::vector<llvm::Value *> values_;
+  for (unsigned i=0; i<values.size(); ++i)
   {
-    value_list_.push_back(value_list->at(i)->obj_);
+    values_.push_back(values.at(i)->obj_);
   }
-  return new PyLLVMMDNode(llvm::MDNode::get(context->obj_, value_list_));
+  
+  return new PyLLVMMDNode(llvm::MDNode::get(context->obj_, values_));
 }
 
 

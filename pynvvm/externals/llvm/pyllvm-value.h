@@ -16,29 +16,29 @@ class PyLLVMValue
     llvm::Value *obj_;
 };
 
-class PyLLVMValueList
-{
-  public:
-    PyLLVMValueList(unsigned n)
-      : obj_(n) {}
-
-    unsigned size(void)
-    {
-      return obj_.size();
-    }
-
-    PyLLVMValue *at(unsigned i)
-    {
-      return obj_.at(i);
-    }
-
-    void push_back(PyLLVMValue *value)
-    {
-      obj_.push_back(value);
-    }
-
-    std::vector<PyLLVMValue*> obj_;
-};
+//class PyLLVMValueList
+//{
+//  public:
+//    PyLLVMValueList(unsigned n)
+//      : obj_(n) {}
+//
+//    unsigned size(void)
+//    {
+//      return obj_.size();
+//    }
+//
+//    PyLLVMValue *at(unsigned i)
+//    {
+//      return obj_.at(i);
+//    }
+//
+//    void push_back(PyLLVMValue *value)
+//    {
+//      obj_.push_back(value);
+//    }
+//
+//    std::vector<PyLLVMValue*> obj_;
+//};
 
 } /* namespace pyllvm */
 

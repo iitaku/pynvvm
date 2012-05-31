@@ -5,24 +5,8 @@
 #include <boost/python.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
-#include <llvm/Analysis/Verifier.h>
-#include <llvm/Bitcode/BitstreamWriter.h>
-#include <llvm/Bitcode/ReaderWriter.h>
-#include <llvm/DerivedTypes.h>
-#include <llvm/Metadata.h>
-#include <llvm/Pass.h>
-#include <llvm/PassManager.h>
-#include <llvm/Support/raw_ostream.h>
-#include <llvm/Support/FormattedStream.h>
-#include <llvm/Support/IRBuilder.h>
-#include <llvm/Target/TargetData.h>
-#include <llvm/Value.h>
-
-#include <cstdio>
 #include <string>
-#include <map>
 #include <vector>
-#include <sstream>
 
 #include "pyllvm-argument.h"
 #include "pyllvm-basicblock.h"
@@ -45,14 +29,6 @@ namespace pyllvm {
 
 BOOST_PYTHON_MODULE(pyllvm)
 {
-  /* Value */
-  bp::class_<PyLLVMValue>("value", bp::init<llvm::Value*>());
-  
-  bp::class_<PyLLVMValueList>("value_list", bp::init<unsigned>())
-    .def("size", &PyLLVMValueList::size)
-    .def("at", &PyLLVMValueList::at, bp::return_value_policy<bp::reference_existing_object>())
-    .def("push_back", &PyLLVMValueList::push_back)
-  ;
 
   /* Type */
   bp::class_<PyLLVMType>("type", bp::init<llvm::Type*>())
@@ -72,6 +48,7 @@ BOOST_PYTHON_MODULE(pyllvm)
     .staticmethod("get_int64_ty")
   ;
 
+  /* TypeVector */
   typedef std::vector<PyLLVMType *> PyLLVMTypeVector;
   
   bp::to_python_converter<PyLLVMTypeVector, vector_to_pylist_converter<PyLLVMTypeVector> >();
@@ -80,67 +57,61 @@ BOOST_PYTHON_MODULE(pyllvm)
     &pylist_to_vector_converter<PyLLVMTypeVector>::construct,
     bp::type_id<PyLLVMTypeVector>())
   ;
-  
-  /* enum */
-  bp::enum_<PyLLVMLinkageTypes>("linkage_type")
-    .value("ExternalLinkage", llvm::GlobalValue::ExternalLinkage)
+   
+  /* PointerType*/
+  bp::class_<PyLLVMPointerType, bp::bases<PyLLVMType> >("pointer_type", bp::init<llvm::PointerType*>())
+    .def("get", &PyLLVMPointerType::get, bp::return_value_policy<bp::manage_new_object>())
+    .staticmethod("get")
   ;
-    
+
+  /* FunctionType*/
+  bp::class_<PyLLVMFunctionType, bp::bases<PyLLVMType> >("function_type", bp::init<llvm::FunctionType*>())
+    .def("get", (PyLLVMFunctionType *(*)(PyLLVMType*, bool))&PyLLVMFunctionType::get, bp::return_value_policy<bp::manage_new_object>())
+    .def("get", (PyLLVMFunctionType *(*)(PyLLVMType*, std::vector<PyLLVMType *>, bool))&PyLLVMFunctionType::get, bp::return_value_policy<bp::manage_new_object>())
+    .staticmethod("get")
+  ;
+
+  /* Value */
+  bp::class_<PyLLVMValue>("value", bp::init<llvm::Value*>());
+
+  /* ValueVector */
+  typedef std::vector<PyLLVMValue *> PyLLVMValueVector;
+  
+  bp::to_python_converter<PyLLVMValueVector, vector_to_pylist_converter<PyLLVMValueVector> >();
+  bp::converter::registry::push_back(
+    &pylist_to_vector_converter<PyLLVMValueVector>::convertible,
+    &pylist_to_vector_converter<PyLLVMValueVector>::construct,
+    bp::type_id<PyLLVMValueVector>())
+  ;
+
   /* Argument */
-  bp::class_<PyLLVMArgument>("argument", bp::init<llvm::Argument*>());
-  
-  /* ArgumentList */
-  bp::class_<PyLLVMArgumentList>("argument_list", bp::init<llvm::iplist<llvm::Argument>& >())
-    .def("size", &PyLLVMArgumentList::size)
-    .def("at", &PyLLVMArgumentList::at, bp::return_value_policy<bp::reference_existing_object>())
+  bp::class_<PyLLVMArgument, bp::bases<PyLLVMValue> >("argument", bp::init<llvm::Argument*>())
+    .def("set_name", &PyLLVMArgument::set_name)
   ;
-
-  /* BasicBlock */
-  bp::class_<PyLLVMBasicBlock>("basic_block", bp::init<llvm::BasicBlock*>())
-    .def("create", &PyLLVMBasicBlock::create, bp::return_value_policy<bp::manage_new_object>()).staticmethod("create");
-
-  /* Bitstream */
-  bp::def("write_bitcode", &write_bitcode);
   
-  /* Builder */
-  bp::class_<PyLLVMBuilder>("builder", bp::init<llvm::IRBuilder<>*>())
-    .def("create", &PyLLVMBuilder::create, bp::return_value_policy<bp::manage_new_object>()).staticmethod("create")
-    .def("set_insert_point", &PyLLVMBuilder::set_insert_point)
-    .def("create_call", &PyLLVMBuilder::create_call, bp::return_value_policy<bp::manage_new_object>())
-    .def("create_gep", &PyLLVMBuilder::create_gep, bp::return_value_policy<bp::manage_new_object>())
-    .def("create_load", &PyLLVMBuilder::create_load, bp::return_value_policy<bp::manage_new_object>())
-    .def("create_store", &PyLLVMBuilder::create_store, bp::return_value_policy<bp::manage_new_object>())
-    .def("create_fadd", &PyLLVMBuilder::create_fadd, bp::return_value_policy<bp::manage_new_object>())
-    .def("create_fsub", &PyLLVMBuilder::create_fsub, bp::return_value_policy<bp::manage_new_object>())
-    .def("create_fmul", &PyLLVMBuilder::create_fmul, bp::return_value_policy<bp::manage_new_object>())
-    .def("create_fcmp_ult", &PyLLVMBuilder::create_fcmp_ult, bp::return_value_policy<bp::manage_new_object>())
-    .def("create_ui_to_fp", &PyLLVMBuilder::create_ui_to_fp, bp::return_value_policy<bp::manage_new_object>())
-    .def("create_create_ret", &PyLLVMBuilder::create_ret, bp::return_value_policy<bp::manage_new_object>())
-    .def("create_ret_void", &PyLLVMBuilder::create_ret_void)
+  /* ArgumentVector */
+  typedef std::vector<PyLLVMArgument *> PyLLVMArgumentVector;
+  bp::to_python_converter<PyLLVMArgumentVector, vector_to_pylist_converter<PyLLVMArgumentVector> >();
+  bp::converter::registry::push_back(
+    &pylist_to_vector_converter<PyLLVMArgumentVector>::convertible,
+    &pylist_to_vector_converter<PyLLVMArgumentVector>::construct,
+    bp::type_id<PyLLVMArgumentVector>())
   ;
 
   /* Constants */
   bp::class_<PyLLVMConstantInt, bp::bases<PyLLVMValue> >("constant_int", bp::init<llvm::Constant*>())
     .def("get", &PyLLVMConstantInt::get, bp::return_value_policy<bp::manage_new_object>())
     .staticmethod("get");
-
-  /* Context */
-  bp::def("get_global_context", &get_global_context, bp::return_value_policy<bp::manage_new_object>());
-  bp::class_<PyLLVMContext>("context", bp::init<llvm::LLVMContext&>());
  
   /* Function */
   bp::class_<PyLLVMFunction, bp::bases<PyLLVMValue> >("function", bp::init<llvm::Function*>())
+    .def("create", &PyLLVMFunction::create, bp::return_value_policy<bp::manage_new_object>()).staticmethod("create")
     .def("get_function_type", &PyLLVMFunction::get_function_type, bp::return_value_policy<bp::manage_new_object>())
-    .def("get_argument_list", &PyLLVMFunction::get_argument_list, bp::return_value_policy<bp::manage_new_object>())
+    .def("get_arguments", &PyLLVMFunction::get_arguments)
+    .def("get_name", &PyLLVMFunction::get_name)
+    .def("erase_from_parent", &PyLLVMFunction::erase_from_parent)
   ;
  
-  /* FunctionType*/
-  bp::class_<PyLLVMFunctionType>("function_type", bp::init<llvm::FunctionType*>())
-    .def("get", (PyLLVMFunctionType *(*)(PyLLVMType*, bool))&PyLLVMFunctionType::get, bp::return_value_policy<bp::manage_new_object>())
-    .def("get", (PyLLVMFunctionType *(*)(PyLLVMType*, std::vector<PyLLVMType *>, bool))&PyLLVMFunctionType::get, bp::return_value_policy<bp::manage_new_object>())
-    .staticmethod("get")
-  ;
-
   /* Metadata */
   bp::class_<PyLLVMMDString, bp::bases<PyLLVMValue> >("md_string", bp::init<llvm::MDString*>())
     .def("get", &PyLLVMMDString::get, bp::return_value_policy<bp::manage_new_object>())
@@ -160,12 +131,40 @@ BOOST_PYTHON_MODULE(pyllvm)
     .def("set_data_layout", &PyLLVMModule::set_data_layout)
     .def("dump", &PyLLVMModule::dump)
     .def("get_function", &PyLLVMModule::get_function, bp::return_value_policy<bp::manage_new_object>())
+    .def("get_or_insert_named_metadata", &PyLLVMModule::get_or_insert_named_metadata, bp::return_value_policy<bp::manage_new_object>())
   ;
+
+  /* BasicBlock */
+  bp::class_<PyLLVMBasicBlock>("basic_block", bp::init<llvm::BasicBlock*>())
+    .def("create", &PyLLVMBasicBlock::create, bp::return_value_policy<bp::manage_new_object>()).staticmethod("create");
   
-  /* PointerType*/
-  bp::class_<PyLLVMPointerType>("pointer_type", bp::init<llvm::PointerType*>())
-    .def("get", &PyLLVMPointerType::get, bp::return_value_policy<bp::manage_new_object>())
-    .staticmethod("get")
+  /* Builder */
+  bp::class_<PyLLVMBuilder>("builder", bp::init<llvm::IRBuilder<>*>())
+    .def("create", &PyLLVMBuilder::create, bp::return_value_policy<bp::manage_new_object>()).staticmethod("create")
+    .def("set_insert_point", &PyLLVMBuilder::set_insert_point)
+    .def("create_call", &PyLLVMBuilder::create_call, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_gep", &PyLLVMBuilder::create_gep, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_load", &PyLLVMBuilder::create_load, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_store", &PyLLVMBuilder::create_store, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_fadd", &PyLLVMBuilder::create_fadd, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_fsub", &PyLLVMBuilder::create_fsub, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_fmul", &PyLLVMBuilder::create_fmul, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_fcmp_ult", &PyLLVMBuilder::create_fcmp_ult, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_ui_to_fp", &PyLLVMBuilder::create_ui_to_fp, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_create_ret", &PyLLVMBuilder::create_ret, bp::return_value_policy<bp::manage_new_object>())
+    .def("create_ret_void", &PyLLVMBuilder::create_ret_void)
+  ;
+
+  /* Context */
+  bp::def("get_global_context", &get_global_context, bp::return_value_policy<bp::manage_new_object>());
+  bp::class_<PyLLVMContext>("context", bp::init<llvm::LLVMContext&>());
+
+  /* Bitstream */
+  bp::def("write_bitcode", &write_bitcode);
+
+  /* enum */
+  bp::enum_<PyLLVMLinkageTypes>("linkage_type")
+    .value("external_linkage", llvm::GlobalValue::ExternalLinkage)
   ;
 }
 

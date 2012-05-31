@@ -17,9 +17,17 @@ PyLLVMFunctionType *PyLLVMFunction::get_function_type(void)
   return new PyLLVMFunctionType(obj_->getFunctionType());
 }
 
-PyLLVMArgumentList *PyLLVMFunction::get_argument_list(void)
+std::vector<PyLLVMArgument*> PyLLVMFunction::get_arguments(void)
 {
-  return new PyLLVMArgumentList(obj_->getArgumentList());
+  llvm::iplist<llvm::Argument>::iterator iter;
+  std::vector<PyLLVMArgument*> list;
+  
+  for (iter = obj_->arg_begin(); iter != obj_->arg_end(); ++iter)
+  {
+    list.push_back(new PyLLVMArgument(static_cast<llvm::Argument*>(iter)));
+  }
+  
+  return list;
 }
 
 PyLLVMFunction *PyLLVMFunction::create(PyLLVMFunctionType *function_type, PyLLVMLinkageTypes linkage_type, std::string name, PyLLVMModule *module)
