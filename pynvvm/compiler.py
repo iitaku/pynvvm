@@ -21,7 +21,56 @@ def test(a, b, c):
   c[0] = a[0] + b[0]
 
 def compile(fun, *args):
-  ASTTraverser().visit(ast.parse(inspect.getsource(fun)))
+  
+  kernel_ast = ast.parse(inspect.getsource(fun))
+  
+  class ArgCheck(ast.NodeVisitor):
+    def generic_visit(self, node):
+      ast.NodeVisitor.generic_visit(self, node)
+    
+    def visit_FunctionDef(self, node):
+      self.args = node.args.args
+      if not len(args) == (len(node.args.args)):
+        raise Exception, 'error : invalid kernel argument number'
+  # class ArgCheck
+
+  check = ArgCheck()
+  check.visit(kernel_ast)
+
+  class NameTracker(ast.NodeVisitor):
+    def __init__(self):
+      self.names = set()
+    def generic_visit(self, node):
+      ast.NodeVisitor.generic_visit(self, node)
+    def visit_Name(self, node):
+      self.names.add(node.id)
+  #end class TrackName
+
+  class IOTracker(ast.NodeVisitor):
+    (i, o, io) = (0x1, 0x2, 0x3)
+    def __init__(self, args_name):
+      self.args_iomap = { arg_name:0x0 for arg_name in args_name }
+    def generic_visit(self, node):
+      ast.NodeVisitor.generic_visit(self, node)
+    def visit_Assign(self, node):
+      for target in node.targets:
+        track = NameTracker()
+        track.visit(target)
+        for name in (track.names & set(self.args_iomap.keys())):
+          self.args_iomap[name] |= IOTracker.o
+      
+      track = NameTracker()
+      track.visit(node.value)
+
+      for name in (track.names & set(self.args_iomap.keys())):
+        self.args_iomap[name] |= IOTracker.i
+  
+  # end class IOTracker 
+  
+  args_name = map(lambda x : x.id, check.args)
+  io_track = IOTracker(args_name)
+  io_track.visit(kernel_ast)
+  print(io_track.args_iomap)
   return test
 
 class LambdaExtractor(ast.NodeVisitor):

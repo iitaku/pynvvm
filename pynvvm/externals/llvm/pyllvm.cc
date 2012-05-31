@@ -29,6 +29,7 @@
 #include "pyllvm-bitstream.h"
 #include "pyllvm-builder.h"
 #include "pyllvm-constants.h"
+#include "pyllvm-converter.h"
 #include "pyllvm-context.h"
 #include "pyllvm-metadata.h"
 #include "pyllvm-module.h"
@@ -44,6 +45,42 @@ namespace pyllvm {
 
 BOOST_PYTHON_MODULE(pyllvm)
 {
+  /* Value */
+  bp::class_<PyLLVMValue>("value", bp::init<llvm::Value*>());
+  
+  bp::class_<PyLLVMValueList>("value_list", bp::init<unsigned>())
+    .def("size", &PyLLVMValueList::size)
+    .def("at", &PyLLVMValueList::at, bp::return_value_policy<bp::reference_existing_object>())
+    .def("push_back", &PyLLVMValueList::push_back)
+  ;
+
+  /* Type */
+  bp::class_<PyLLVMType>("type", bp::init<llvm::Type*>())
+    .def("get_void_ty", &PyLLVMType::get_void_ty, bp::return_value_policy<bp::manage_new_object>())
+    .staticmethod("get_void_ty")
+    .def("get_float_ty", &PyLLVMType::get_float_ty, bp::return_value_policy<bp::manage_new_object>())
+    .staticmethod("get_float_ty")
+    .def("get_double_ty", &PyLLVMType::get_double_ty, bp::return_value_policy<bp::manage_new_object>())
+    .staticmethod("get_double_ty")
+    .def("get_int8_ty", &PyLLVMType::get_int8_ty, bp::return_value_policy<bp::manage_new_object>())
+    .staticmethod("get_int8_ty")
+    .def("get_int16_ty", &PyLLVMType::get_int16_ty, bp::return_value_policy<bp::manage_new_object>())
+    .staticmethod("get_int16_ty")
+    .def("get_int32_ty", &PyLLVMType::get_int32_ty, bp::return_value_policy<bp::manage_new_object>())
+    .staticmethod("get_int32_ty")
+    .def("get_int64_ty", &PyLLVMType::get_int64_ty, bp::return_value_policy<bp::manage_new_object>())
+    .staticmethod("get_int64_ty")
+  ;
+
+  typedef std::vector<PyLLVMType *> PyLLVMTypeVector;
+  
+  bp::to_python_converter<PyLLVMTypeVector, vector_to_pylist_converter<PyLLVMTypeVector> >();
+  bp::converter::registry::push_back(
+    &pylist_to_vector_converter<PyLLVMTypeVector>::convertible,
+    &pylist_to_vector_converter<PyLLVMTypeVector>::construct,
+    bp::type_id<PyLLVMTypeVector>())
+  ;
+  
   /* enum */
   bp::enum_<PyLLVMLinkageTypes>("linkage_type")
     .value("ExternalLinkage", llvm::GlobalValue::ExternalLinkage)
@@ -63,9 +100,8 @@ BOOST_PYTHON_MODULE(pyllvm)
     .def("create", &PyLLVMBasicBlock::create, bp::return_value_policy<bp::manage_new_object>()).staticmethod("create");
 
   /* Bitstream */
-  bp::class_<PyLLVMStringBuffer>("string_buffer", bp::init<unsigned>());
-  bp::class_<PyLLVMBitstreamWriter>("bitstream_writer", bp::init<PyLLVMStringBuffer*>());
-
+  bp::def("write_bitcode", &write_bitcode);
+  
   /* Builder */
   bp::class_<PyLLVMBuilder>("builder", bp::init<llvm::IRBuilder<>*>())
     .def("create", &PyLLVMBuilder::create, bp::return_value_policy<bp::manage_new_object>()).staticmethod("create")
@@ -100,7 +136,8 @@ BOOST_PYTHON_MODULE(pyllvm)
  
   /* FunctionType*/
   bp::class_<PyLLVMFunctionType>("function_type", bp::init<llvm::FunctionType*>())
-    .def("get", &PyLLVMFunctionType::get, bp::return_value_policy<bp::manage_new_object>())
+    .def("get", (PyLLVMFunctionType *(*)(PyLLVMType*, bool))&PyLLVMFunctionType::get, bp::return_value_policy<bp::manage_new_object>())
+    .def("get", (PyLLVMFunctionType *(*)(PyLLVMType*, std::vector<PyLLVMType *>, bool))&PyLLVMFunctionType::get, bp::return_value_policy<bp::manage_new_object>())
     .staticmethod("get")
   ;
 
@@ -117,7 +154,6 @@ BOOST_PYTHON_MODULE(pyllvm)
     .def("add_operand", &PyLLVMNamedMDNode::add_operand)
   ;
 
-
   /* Module */
   bp::class_<PyLLVMModule>("module", bp::init<llvm::Module*>())
     .def("create", &PyLLVMModule::create, bp::return_value_policy<bp::manage_new_object>()).staticmethod("create")
@@ -130,23 +166,6 @@ BOOST_PYTHON_MODULE(pyllvm)
   bp::class_<PyLLVMPointerType>("pointer_type", bp::init<llvm::PointerType*>())
     .def("get", &PyLLVMPointerType::get, bp::return_value_policy<bp::manage_new_object>())
     .staticmethod("get")
-  ;
-
-  /* Type */
-  bp::class_<PyLLVMType>("type", bp::init<llvm::Type*>())
-    .def("get_int32_ty", &PyLLVMType::get_int32_ty, bp::return_value_policy<bp::manage_new_object>())
-    .staticmethod("get_int32_ty")
-    .def("get_void_ty", &PyLLVMType::get_void_ty, bp::return_value_policy<bp::manage_new_object>())
-    .staticmethod("get_void_ty")
-  ;
-
-  /* Value */
-  bp::class_<PyLLVMValue>("value", bp::init<llvm::Value*>());
-  
-  bp::class_<PyLLVMValueList>("value_list", bp::init<unsigned>())
-    .def("size", &PyLLVMValueList::size)
-    .def("at", &PyLLVMValueList::at, bp::return_value_policy<bp::reference_existing_object>())
-    .def("push_back", &PyLLVMValueList::push_back)
   ;
 }
 

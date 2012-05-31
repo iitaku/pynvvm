@@ -1,7 +1,7 @@
 import math
 import numpy as np
 #from pynvvm import kernel, blockIdx, blockDim, threadIdx
-from pynvvm import kernel
+import pynvvm
 
 #def main():
 #  #m = Mapper(lambda x : math.sqrt(x + 1))
@@ -17,7 +17,7 @@ from pynvvm import kernel
 #if __name__ == '__main__':
 #  main()
 
-@kernel(np.float32, np.float32, np.float32)
+@pynvvm.kernel(pynvvm.ndarray(np.float32), pynvvm.ndarray(np.float32), pynvvm.ndarray(np.float32))
 def vec_add(a, b, c):
   i = blockIdx.x * blockDim.x + threadIdx.x
   c[i] = a[i] + b[i]

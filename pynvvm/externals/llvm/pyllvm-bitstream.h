@@ -6,27 +6,24 @@
 #include <llvm/Bitcode/BitstreamWriter.h>
 #include <llvm/Bitcode/ReaderWriter.h>
 
+#include "pyllvm-module.h"
+
 namespace pyllvm {
 
-class PyLLVMStringBuffer
+std::string write_bitcode(PyLLVMModule *module)
 {
-  public:
-    PyLLVMStringBuffer(unsigned n)
-      : obj_(n) {}
+  std::vector<unsigned char> buffer;
 
-    std::vector<unsigned char> obj_;
-};
+  llvm::BitstreamWriter stream(buffer);
 
-class PyLLVMBitstreamWriter
-{
-  public:
-    PyLLVMBitstreamWriter(PyLLVMStringBuffer *buffer)
-    {
-      //obj_ = new llvm::BitstreamWriter(buffer->obj_);
-    }
+  buffer.resize(256*1024);
 
-    llvm::BitstreamWriter *obj_;
-};
+  llvm::WriteBitcodeToStream(module->obj_, stream);
+
+  std::string code(buffer.begin(), buffer.end());
+  
+  return code;
+}
 
 } /* namespace pyllvm */
 

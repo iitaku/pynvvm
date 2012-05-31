@@ -5,19 +5,21 @@
 
 namespace pyllvm {
 
-PyLLVMType *PyLLVMType::get_int32_ty(PyLLVMContext *context)
+PyLLVMFunctionType *PyLLVMFunctionType::get(PyLLVMType *result, bool is_var_arg)
 {
-  return new PyLLVMType(reinterpret_cast<llvm::Type*>(llvm::Type::getInt32Ty(context->obj_)));
+  return new PyLLVMFunctionType(llvm::FunctionType::get(result->obj_, is_var_arg));
 }
 
-PyLLVMType *PyLLVMType::get_void_ty(PyLLVMContext *context)
+PyLLVMFunctionType *PyLLVMFunctionType::get(PyLLVMType *result, std::vector<PyLLVMType *> params, bool is_var_arg)
 {
-  return new PyLLVMType(reinterpret_cast<llvm::Type*>(llvm::Type::getVoidTy(context->obj_)));
-}
-
-PyLLVMFunctionType *PyLLVMFunctionType::get(PyLLVMType *type, bool is_var_arg)
-{
-  return new PyLLVMFunctionType(llvm::FunctionType::get(type->obj_, is_var_arg));
+  std::vector<llvm::Type *> params_;
+  
+  for(int i=0; i<params.size(); ++i)
+  {
+    params_.push_back(params[i]->obj_);
+  }
+  
+  return new PyLLVMFunctionType(llvm::FunctionType::get(result->obj_, params_, is_var_arg));
 }
 
 PyLLVMPointerType *PyLLVMPointerType::get(PyLLVMType *type, unsigned address_space)
