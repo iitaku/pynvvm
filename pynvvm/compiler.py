@@ -1,4 +1,5 @@
-# 型推論でスコープが適切に実装されていない
+
+# note : type inferitance does not support scope
 
 import ast
 import inspect
@@ -356,10 +357,8 @@ def compile_ast(tree, *arg_types):
 
     def visit_Compare(self, node):
       node.left = self.visit(node.left)
-      print(ast.dump(node.comparators[0]))
       node.comparators[0] = self.visit(node.comparators[0])
      
-      print('%s : %s' % (node.left.type, node.comparators[0].type))
       if not node.left.type == node.comparators[0].type:
         raise Exception, 'error : mismatched type'
 
@@ -407,7 +406,6 @@ def compile_ast(tree, *arg_types):
       node.left = self.visit(node.left)
       node.right = self.visit(node.right)
   
-      print('%s : %s' % (node.left.type, node.right.type))
       if not node.left.type == node.right.type:
         raise Exception, 'error : mismatched type'
 
@@ -419,7 +417,6 @@ def compile_ast(tree, *arg_types):
       return node
 
     def visit_Num(self, node):
-      #print(ast.dump(node))
       if float == type(node.n):
         node.type = nvtype.float32
       elif int == type(node.n):
@@ -465,9 +462,6 @@ def compile_ast(tree, *arg_types):
       pass
 
     def visit_Assign(self, node):
-      #print(ast.dump(node))
-      #print('')
-      
       self.visit(node.targets[0])
       self.visit(node.value)
       #ast.NodeVisitor.generic_visit(self, node)
