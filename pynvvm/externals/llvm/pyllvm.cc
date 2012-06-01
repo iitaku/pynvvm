@@ -189,7 +189,7 @@ BOOST_PYTHON_MODULE(pyllvm)
   bp::class_<PyLLVMContext>("context", bp::init<llvm::LLVMContext&>());
 
   /* Bitstream */
-  bp::def("write_bitcode", &write_bitcode);
+  bp::def("print_ir", &print_ir);
 
   /* enum */
   bp::enum_<PyLLVMLinkageTypes>("linkage_type")

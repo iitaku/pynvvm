@@ -9,12 +9,13 @@
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/Pass.h>
 #include <llvm/PassManager.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include "pyllvm-module.h"
 
 namespace pyllvm {
 
-std::string write_bitcode(PyLLVMModule *module)
+std::string print_ir(PyLLVMModule *module)
 {
   llvm::PassManager *PM;
   int error = 0;
@@ -23,10 +24,7 @@ std::string write_bitcode(PyLLVMModule *module)
   if (PM->run(*(module->obj_))) {
     error = 1;
   }
-  std::cout << error << std::endl;
-  
-  module->obj_->dump();
-  
+   
   delete PM;
   
   std::vector<unsigned char> buffer;
@@ -37,8 +35,12 @@ std::string write_bitcode(PyLLVMModule *module)
 
   llvm::WriteBitcodeToStream(module->obj_, stream);
 
-  std::string code(buffer.begin(), buffer.end());
+  //std::string code(buffer.begin(), buffer.end());
+  std::string code;
  
+  llvm::raw_string_ostream ss(code);
+  module->obj_->print(ss, NULL);
+  
   return code;
 }
 

@@ -3,37 +3,24 @@ import numpy as np
 #from pynvvm import kernel, blockIdx, blockDim, threadIdx
 import pynvvm
 
-#def main():
-#  #m = Mapper(lambda x : math.sqrt(x + 1))
-#  m = Mapper(lambda x : math.sqrt(x + 1))
-#  r = Reducer(lambda x, y : x if x < y else y)
-#  c = Composer([m, r])
-#  
-#  incoming = numpy.array([1.0, 2.0, 3.0]).astype(numpy.float32)
-#  outgoing = c.run(incoming)
-#  print(incoming)
-#  print(outgoing)
-#
-#if __name__ == '__main__':
-#  main()
-
 @pynvvm.kernel.kernel(pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.int32(), pynvvm.nvtype.int32())
 def vec_add(a, b, c, n, m):
   i = pynvvm_ctaid_x() * pynvvm_ntid_x() + pynvvm_tid_x()
-  if (i < n):
+  if (i < n/2):
     c[i] = a[i] + b[i]
   else:
     c[i] = a[i] - b[i]
-    
   return
 
-a = np.array([1.0, 2.0, 3.0]).astype(np.float32)
-b = np.array([1.0, 2.0, 3.0]).astype(np.float32)
-c = np.zeros(3).astype(np.float32)
+a = np.array([1.0, 2.0, 3.0, 4.0]).astype(np.float32)
+b = np.array([1.0, 2.0, 3.0, 4.0]).astype(np.float32)
+c = np.zeros(4).astype(np.float32)
 
 vec_add(a, b, c)
 
 print(c)
+
+
 
 #import pycuda.autoinit
 #import pycuda.driver as drv

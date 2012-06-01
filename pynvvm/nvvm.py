@@ -94,9 +94,12 @@ class _nvvmInstance:
   
   def destroy_cu(self, cu):
     return self._dll.nvvmDestroyCU(ctypes.byref(cu))
-  
-  def cu_add_module(self, cu, code):
+   
+  def cu_add_module_ir(self, cu, code):
     return self._dll.nvvmCUAddModule(cu, ctypes.c_char_p(code.encode('ascii')), ctypes.c_size_t(len(code)))
+
+  def cu_add_module_bc(self, cu, code):
+    return self._dll.nvvmCUAddModule(cu, ctypes.c_char_p(code), ctypes.c_size_t(len(code)))
   
   def compile_cu(self, cu, options):
     numOptions = len(options)
