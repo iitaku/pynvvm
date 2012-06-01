@@ -255,6 +255,31 @@ declare i32 @llvm.nvvm.read.ptx.sreg.nctaid.z()
 declare void @llvm.cuda.syncthreads()
 '''
 
+class Scope:
+  def __init__(self, parent=None):
+    self._parent = parent
+    self.env = dict()
+    return
+  
+  def create_child(self):
+    child = Scope()
+    child.parent = self
+    return child
+
+  def search_env(self, name):
+    result = self.env.get(name, (None, None))
+    
+    if (None, None) == result and None != self.parent:
+      return self.parent.search_env(name)
+    else:
+      return result
+
+  @property
+  def parent(self):
+    return self._parent
+
+#end class Scope
+
 class ASTTraverser(ast.NodeVisitor):
   
   def generic_visit(self, node):
@@ -442,7 +467,6 @@ def compile_ast(tree, *arg_types):
       self.builder = pyllvm.builder.create(self.context)
       self.module = pyllvm.module.create('pynvvm_module', self.context)
       self.arg_nametypes = arg_nametypes
-      self.env = {arg_name:(arg_type, None) for arg_name, arg_type in arg_nametypes}
      
       self.llint32_zero = pyllvm.constant_int.get(pyllvm.type.get_int32_ty(self.context), 0)
       self.llint32_one = pyllvm.constant_int.get(pyllvm.type.get_int32_ty(self.context), 1)
@@ -451,7 +475,9 @@ def compile_ast(tree, *arg_types):
       ast.NodeVisitor.generic_visit(self, node)
      
     def visit_FunctionDef(self, node):
-      
+      self.scope = Scope()
+      self.current_scope = self.scope
+     
       llarg_tys = [arg_type.typefun()(self.context) for _, arg_type in self.arg_nametypes]
       llret_ty = pyllvm.type.get_void_ty(self.context)
       fun_ty = pyllvm.function_type.get(llret_ty, llarg_tys, False)
@@ -463,13 +489,10 @@ def compile_ast(tree, *arg_types):
       args = self.fun.get_arguments()
       for i, (arg_name, arg_type) in enumerate(self.arg_nametypes):
         args[i].set_name(arg_name)
-        if not nvtype.pointer == arg_type.__class__:
-          lltype = arg_type.typefun()(self.context)
-          llptr = self.builder.create_alloca(lltype, self.llint32_one, arg_name)
-          self.builder.create_store(args[i], llptr)
-          self.env[arg_name] = (nvtype.pointer(arg_type.__class__), llptr)
-        else:
-          self.env[arg_name] = (arg_type, args[i])
+        llptr = self.builder.create_alloca(arg_type.typefun()(self.context), self.llint32_one, '')
+        
+        self.builder.create_store(args[i], llptr)
+        self.current_scope.env[arg_name] = (arg_type, llptr)
               
       for b in node.body:
         self.visit(b)
@@ -478,7 +501,7 @@ def compile_ast(tree, *arg_types):
       lltarget = self.visit(node.targets[0])
       llvalue = self.visit(node.value)
       self.builder.create_store(llvalue, lltarget)
-     
+
     def visit_BinOp(self, node):
       lllhs = self.visit(node.left)
       llrhs = self.visit(node.right)
@@ -525,15 +548,15 @@ def compile_ast(tree, *arg_types):
       if isinstance(node.ops[0], ast.Eq):
         llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
       elif isinstance(node.ops[0], ast.NotEq):
-        llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
+        llretval = node.left.type.nefun()(self.builder, lllhs, llrhs, '')
       elif isinstance(node.ops[0], ast.Gt):
-        llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
+        llretval = node.left.type.gtfun()(self.builder, lllhs, llrhs, '')
       elif isinstance(node.ops[0], ast.GtE):
-        llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
+        llretval = node.left.type.gefun()(self.builder, lllhs, llrhs, '')
       elif isinstance(node.ops[0], ast.Lt):
-        llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
+        llretval = node.left.type.ltfun()(self.builder, lllhs, llrhs, '')
       elif isinstance(node.ops[0], ast.LtE):
-        llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
+        llretval = node.left.type.lefun()(self.builder, lllhs, llrhs, '')
       else:
         raise Exception, 'error : unsupported compare'
 
@@ -548,49 +571,46 @@ def compile_ast(tree, *arg_types):
       self.builder.create_cond_br(lltest, ifthenbb, orelsebb)
 
       self.builder.set_insert_point(ifthenbb)
+      self.current_scope = self.current_scope.create_child()
       for stm in node.body:
         self.visit(stm)
       self.builder.create_br(brexitbb)
+      self.current_scope = self.current_scope.parent
 
       self.builder.set_insert_point(orelsebb)
+      self.current_scope = self.current_scope.create_child()
       for stm in node.orelse:
         self.visit(stm)
       self.builder.create_br(brexitbb)
+      self.current_scope = self.current_scope.parent
 
       self.builder.set_insert_point(brexitbb)
  
     def visit_Subscript(self, node):
-      llptr = self.visit(node.value)
+      llbaseptr = self.visit(node.value)
       llidx = self.visit(node.slice.value)
-     
-      print(ast.dump(node))
-      if isinstance(node.ctx, ast.Store):
-        return self.builder.create_gep(llptr, llidx, '')
+      llptr = self.builder.create_gep(llbaseptr, llidx, '')
+      
+      if ast.Store == type(node.ctx):
+        return llptr
       else:
-        return self.builder.create_load(self.builder.create_gep(llptr, llidx, ''))
+        return self.builder.create_load(llptr)
  
     def visit_Name(self, node):
-      (ty, llptr) = self.env.get(node.id, (None, None))
 
-      assert llptr == None or nvtype.pointer == ty.__class__, 'invalid env value'
-           
-      if isinstance(node.ctx, ast.Store):
+      ty, llptr = self.current_scope.search_env(node.id)
+                 
+      if ast.Store == type(node.ctx):
         if None == llptr:
-          
-          if not node.__dict__.has_key('type'):
-            raise Exception, 'error : failed type inference'
+          assert None != node.type, 'error : failed type inference'
         
           lltype = node.type.typefun()(self.context)
-          llptr = self.builder.create_alloca(lltype, self.llint32_one, '') 
-          self.env[node.id] = (nvtype.pointer(node.type.__class__), llptr)
-          return llptr
-        else:
-          return llptr
+          llptr = self.builder.create_alloca(lltype, self.llint32_one, '')
+          self.current_scope.env[node.id] = (node.type, llptr)
+        return llptr
       else:
-        if None == llptr:
-          raise Exception, 'error : unknown value'
+        assert None != llptr, 'error : unknown name'
         
-        print(node.id)
         return self.builder.create_load(llptr)
 
     def visit_Num(self, node):

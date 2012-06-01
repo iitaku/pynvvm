@@ -17,8 +17,8 @@ import pynvvm
 #if __name__ == '__main__':
 #  main()
 
-@pynvvm.kernel.kernel(pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.int32())
-def vec_add(a, b, c, n):
+@pynvvm.kernel.kernel(pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.int32(), pynvvm.nvtype.int32())
+def vec_add(a, b, c, n, m):
   i = pynvvm_ctaid_x() * pynvvm_ntid_x() + pynvvm_tid_x()
   if (i < n):
     c[i] = a[i] + b[i]
