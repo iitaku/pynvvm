@@ -456,8 +456,15 @@ class CodeGenerator(ast.NodeVisitor):
     self.llint32_one = pyllvm.constant_int.get(pyllvm.type.get_int32_ty(self.context), 1)
   
   def generic_visit(self, node):
+    print(type(node))
+    raise Exception, 'error : unknown syntax'
+  
+  def visit_Module(self, node):
     ast.NodeVisitor.generic_visit(self, node)
-   
+ 
+  def visit_Return(self, node):
+    ast.NodeVisitor.generic_visit(self, node)
+
   def visit_FunctionDef(self, node):
     self.scope = Scope()
     self.current_scope = self.scope

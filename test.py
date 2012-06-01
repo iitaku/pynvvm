@@ -27,6 +27,14 @@ def gpu(x, y, a, n):
 def cpu(x, y, a, n):
   return a * x + y
 
+def py(x, y, a, n):
+  z = np.zeros_like(x)
+  for i in range(n):
+    for j in range(n):
+      idx = i * n + j
+      z[idx] = a * x[idx] + y [idx]
+  return z
+
 if '__main__' == __name__:
   
   n = 1024
