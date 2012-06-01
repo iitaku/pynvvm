@@ -36,6 +36,12 @@ class PyLLVMType
     }
 
     static
+    PyLLVMType *get_int1_ty(PyLLVMContext *context)
+    {
+      return new PyLLVMType(reinterpret_cast<llvm::Type*>(llvm::Type::getInt1Ty(context->obj_)));
+    }
+
+    static
     PyLLVMType *get_int8_ty(PyLLVMContext *context)
     {
       return new PyLLVMType(reinterpret_cast<llvm::Type*>(llvm::Type::getInt8Ty(context->obj_)));

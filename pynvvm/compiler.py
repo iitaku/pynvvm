@@ -1,5 +1,8 @@
 
 # note : type inferitance does not support scope
+#        there are a lot of unsupported Op
+#        leaks memory
+#        creating alloca for all value (too slow...)
 
 import ast
 import inspect
@@ -256,11 +259,11 @@ class ASTTraverser(ast.NodeVisitor):
   
   def generic_visit(self, node):
     #print('%40s : %s' % (node, str(node.__dict__)))
-    if node.__dict__.has_key('type'):
-      print('%20s : %s' % (node.type, type(node).__name__))
-    else:
-      print('%20s : %s' % ('', type(node).__name__))
-    #print('%12s : %s' % (type(node).__name__, str(node.__dict__)))
+    #if node.__dict__.has_key('type'):
+    #  print('%20s : %s' % (node.type, type(node).__name__))
+    #else:
+    #  print('%20s : %s' % ('', type(node).__name__))
+    print('%12s : %s' % (type(node).__name__, str(node.__dict__)))
     ast.NodeVisitor.generic_visit(self, node)
 
 #end class ASTTraverser
@@ -331,7 +334,7 @@ def compile_ast(tree, *arg_types):
 
   class TypeInferencer(ast.NodeTransformer):
     def __init__(self, arg_nametypes):
-      self.env_nametypes = arg_nametypes
+      self.env_nametypes = dict(arg_nametypes)
 
     def generic_visit(self, node):
       return ast.NodeTransformer.generic_visit(self, node)
@@ -359,9 +362,11 @@ def compile_ast(tree, *arg_types):
       node.left = self.visit(node.left)
       node.comparators[0] = self.visit(node.comparators[0])
      
-      if not node.left.type == node.comparators[0].type:
+      if not node.left.type.__class__ == node.comparators[0].type.__class__:
         raise Exception, 'error : mismatched type'
 
+      node.type = nvtype.int1()
+      
       return node
     
     def visit_Name(self, node):
@@ -387,7 +392,7 @@ def compile_ast(tree, *arg_types):
         if not isinstance(arg.type, arg_types[i]):
           raise Exception, 'error : invalid function argument'
       
-      node.type = ret_type
+      node.type = ret_type()
       
       return node
     
@@ -406,7 +411,7 @@ def compile_ast(tree, *arg_types):
       node.left = self.visit(node.left)
       node.right = self.visit(node.right)
   
-      if not node.left.type == node.right.type:
+      if not node.left.type.__class__ == node.right.type.__class__:
         raise Exception, 'error : mismatched type'
 
       if None == node.left.type and None == node.right.type:
@@ -418,103 +423,184 @@ def compile_ast(tree, *arg_types):
 
     def visit_Num(self, node):
       if float == type(node.n):
-        node.type = nvtype.float32
+        node.type = nvtype.float32()
       elif int == type(node.n):
-        node.type = nvtype.int32
+        node.type = nvtype.int32()
       else:
         raise Exception, 'error : invalid number'
       return node
 
   # end class TypeInferencer
 
-  arg_nametypes = dict(zip(arg_names, arg_types))
+  arg_nametypes = zip(arg_names, arg_types)
   typeinfer = TypeInferencer(arg_nametypes)
   tree = typeinfer.visit(tree)
 
   class CodeGenerator(ast.NodeVisitor):
-    def __init__(self, arg_types):
+    def __init__(self, arg_nametypes):
       self.context = pyllvm.get_global_context()
       self.builder = pyllvm.builder.create(self.context)
       self.module = pyllvm.module.create('pynvvm_module', self.context)
-      self.env = dict()
-      self.arg_types = arg_types
+      self.arg_nametypes = arg_nametypes
+      self.env = {arg_name:(arg_type, None) for arg_name, arg_type in arg_nametypes}
+     
+      self.llint32_zero = pyllvm.constant_int.get(pyllvm.type.get_int32_ty(self.context), 0)
+      self.llint32_one = pyllvm.constant_int.get(pyllvm.type.get_int32_ty(self.context), 1)
     
     def generic_visit(self, node):
       ast.NodeVisitor.generic_visit(self, node)
      
     def visit_FunctionDef(self, node):
-      llarg_tys = [arg_type.typefun()(self.context) for arg_type in self.arg_types]
+      
+      llarg_tys = [arg_type.typefun()(self.context) for _, arg_type in self.arg_nametypes]
       llret_ty = pyllvm.type.get_void_ty(self.context)
       fun_ty = pyllvm.function_type.get(llret_ty, llarg_tys, False)
-      fun = pyllvm.function.create(fun_ty, pyllvm.linkage_type.external_linkage, 'stub', self.module)
+      self.fun = pyllvm.function.create(fun_ty, pyllvm.linkage_type.external_linkage, 'stub', self.module)
 
-      args = fun.get_arguments()
-      for i, arg_name in enumerate(arg_names):
-        args[i].set_name(arg_name)
-        self.env[arg_name] = args[i]
-      
-      bb = pyllvm.basic_block.create(self.context, 'entry', fun)
-      
+      bb = pyllvm.basic_block.create(self.context, 'entry', self.fun)
       self.builder.set_insert_point(bb)
-      
-      ast.NodeVisitor.generic_visit(self, node)
 
-      pass
+      args = self.fun.get_arguments()
+      for i, (arg_name, arg_type) in enumerate(self.arg_nametypes):
+        args[i].set_name(arg_name)
+        if not nvtype.pointer == arg_type.__class__:
+          lltype = arg_type.typefun()(self.context)
+          llptr = self.builder.create_alloca(lltype, self.llint32_one, arg_name)
+          self.builder.create_store(args[i], llptr)
+          self.env[arg_name] = (nvtype.pointer(arg_type.__class__), llptr)
+        else:
+          self.env[arg_name] = (arg_type, args[i])
+              
+      for b in node.body:
+        self.visit(b)
 
     def visit_Assign(self, node):
-      self.visit(node.targets[0])
-      self.visit(node.value)
-      #ast.NodeVisitor.generic_visit(self, node)
-      pass
+      lltarget = self.visit(node.targets[0])
+      llvalue = self.visit(node.value)
+      self.builder.create_store(llvalue, lltarget)
      
     def visit_BinOp(self, node):
-      ast.NodeVisitor.generic_visit(self, node)
-      pass
+      lllhs = self.visit(node.left)
+      llrhs = self.visit(node.right)
+     
+      llretval = None
+      if isinstance(node.op, ast.Add):
+        llretval = node.left.type.addfun()(self.builder, lllhs, llrhs, '')
+      elif isinstance(node.op, ast.Sub):
+        llretval = node.left.type.subfun()(self.builder, lllhs, llrhs, '')
+      elif isinstance(node.op, ast.Mult):
+        llretval = node.left.type.mulfun()(self.builder, lllhs, llrhs, '')
+      elif isinstance(node.op, ast.Div):
+        llretval = node.left.type.divfun()(self.builder, lllhs, llrhs, '')
+      elif isinstance(node.op, ast.BitAnd):
+        llretval = self.builder.create_and(lllhs, llrhs, '')
+      elif isinstance(node.op, ast.BitOr):
+        llretval = self.builder.create_or(lllhs, llrhs, '')
+      elif isinstance(node.op, ast.BitXor):
+        llretval = self.builder.create_xor(lllhs, llrhs, '')
+      else:
+        raise Exception, 'error : unsupported binop'
+      
+      return llretval
   
     def visit_Call(self, node):
-      ast.NodeVisitor.generic_visit(self, node)
-      pass
+      (ret_ty, param_ty) = _builtin_types.get(node.func.id, (None, None))
+      llret_ty = ret_ty.typefun()(self.context)
+      llparam_ty = [ty.typefun()(self.context) for ty in param_ty]
+      llfun_ty = pyllvm.function_type.get(llret_ty, llparam_ty, False)
+      llfun = pyllvm.function.create(llfun_ty, pyllvm.linkage_type.external_linkage, node.func.id, self.module)
+      
+      llarg = [] 
+      for arg in node.args:
+        llarg.append(self.visit(arg))
+      
+      return self.builder.create_call(llfun, llarg, '')
    
     def visit_Compare(self, node):
-      ast.NodeVisitor.generic_visit(self, node)
-      pass
+      lllhs = self.visit(node.left)
+      llrhs = self.visit(node.comparators[0])
+      
+      llretval = None
+      
+      if isinstance(node.ops[0], ast.Eq):
+        llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
+      elif isinstance(node.ops[0], ast.NotEq):
+        llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
+      elif isinstance(node.ops[0], ast.Gt):
+        llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
+      elif isinstance(node.ops[0], ast.GtE):
+        llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
+      elif isinstance(node.ops[0], ast.Lt):
+        llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
+      elif isinstance(node.ops[0], ast.LtE):
+        llretval = node.left.type.eqfun()(self.builder, lllhs, llrhs, '')
+      else:
+        raise Exception, 'error : unsupported compare'
+
+      return llretval
  
     def visit_If(self, node):
-      ast.NodeVisitor.generic_visit(self, node)
-      pass
- 
-    def visit_Index(self, node):
-      ast.NodeVisitor.generic_visit(self, node)
-      pass
+      ifthenbb = pyllvm.basic_block.create(self.context, 'ifthen', self.fun)
+      orelsebb = pyllvm.basic_block.create(self.context, 'orelse', self.fun)
+      brexitbb = pyllvm.basic_block.create(self.context, 'brexit', self.fun)
+      
+      lltest = self.visit(node.test)
+      self.builder.create_cond_br(lltest, ifthenbb, orelsebb)
 
+      self.builder.set_insert_point(ifthenbb)
+      for stm in node.body:
+        self.visit(stm)
+      self.builder.create_br(brexitbb)
+
+      self.builder.set_insert_point(orelsebb)
+      for stm in node.orelse:
+        self.visit(stm)
+      self.builder.create_br(brexitbb)
+
+      self.builder.set_insert_point(brexitbb)
+ 
     def visit_Subscript(self, node):
-      #print(ast.dump(node))
-      #print('')
-      ast.NodeVisitor.generic_visit(self, node)
-      pass
+      llptr = self.visit(node.value)
+      llidx = self.visit(node.slice.value)
+     
+      print(ast.dump(node))
+      if isinstance(node.ctx, ast.Store):
+        return self.builder.create_gep(llptr, llidx, '')
+      else:
+        return self.builder.create_load(self.builder.create_gep(llptr, llidx, ''))
  
     def visit_Name(self, node):
-      pass
+      (ty, llptr) = self.env.get(node.id, (None, None))
 
-    def visit_Add(self, node):
-      pass
-    
-    def visit_Sub(self, node):
-      pass
+      assert llptr == None or nvtype.pointer == ty.__class__, 'invalid env value'
+           
+      if isinstance(node.ctx, ast.Store):
+        if None == llptr:
+          
+          if not node.__dict__.has_key('type'):
+            raise Exception, 'error : failed type inference'
+        
+          lltype = node.type.typefun()(self.context)
+          llptr = self.builder.create_alloca(lltype, self.llint32_one, '') 
+          self.env[node.id] = (nvtype.pointer(node.type.__class__), llptr)
+          return llptr
+        else:
+          return llptr
+      else:
+        if None == llptr:
+          raise Exception, 'error : unknown value'
+        
+        print(node.id)
+        return self.builder.create_load(llptr)
 
-    def visit_Mult(self, node):
-      pass
-    
-    def visit_Div(self, node):
-      pass
-
-    def visit_Mod(self, node):
-      pass
+    def visit_Num(self, node):
+      return node.type.valuefun()(node.type.typefun()(self.context), node.n)
+  
   # end class CodeGenerator
 
-  ASTTraverser().visit(tree)
+  #ASTTraverser().visit(tree)
 
-  codegen = CodeGenerator(arg_types)
+  codegen = CodeGenerator(arg_nametypes)
   codegen.visit(tree)
   codegen.module.dump()
 

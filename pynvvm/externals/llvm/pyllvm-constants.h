@@ -16,7 +16,17 @@ class PyLLVMConstantInt : public PyLLVMValue
       : PyLLVMValue(obj) {}
 
     static
-    PyLLVMConstantInt *get(PyLLVMType *type, int i);
+    PyLLVMConstantInt *get(PyLLVMType *type, int val);
+};
+
+class PyLLVMConstantFP : public PyLLVMValue
+{
+  public:
+    PyLLVMConstantFP(llvm::Constant *obj)
+      : PyLLVMValue(obj) {}
+
+    static
+    PyLLVMConstantFP *get(PyLLVMType *type, double val);
 };
 
 } /* namespace pyllvm */
