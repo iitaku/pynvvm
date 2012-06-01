@@ -1,12 +1,12 @@
 import math
 import numpy as np
-#from pynvvm import kernel, blockIdx, blockDim, threadIdx
-import pynvvm
+from pynvvm.kernel import kernel
+from pynvvm.nvtype import array, float32, int32
 
-@pynvvm.kernel.kernel(pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.array(pynvvm.nvtype.float32), pynvvm.nvtype.int32(), pynvvm.nvtype.int32())
-def vec_add(a, b, c, n, m):
+@kernel(array(float32), array(float32), array(float32))
+def vec_add(a, b, c):
   i = pynvvm_ctaid_x() * pynvvm_ntid_x() + pynvvm_tid_x()
-  if (i < n/2):
+  if (i < 2):
     c[i] = a[i] + b[i]
   else:
     c[i] = a[i] - b[i]
@@ -16,7 +16,10 @@ a = np.array([1.0, 2.0, 3.0, 4.0]).astype(np.float32)
 b = np.array([1.0, 2.0, 3.0, 4.0]).astype(np.float32)
 c = np.zeros(4).astype(np.float32)
 
-vec_add(a, b, c)
+bsz = (4, 1, 1)
+gsz  = (1, 1, 1)
+
+vec_add(bsz, gsz)(a, b, c)
 
 print(c)
 

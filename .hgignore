@@ -4,4 +4,6 @@ nvvm.h
 .o
 .pyc
 .swp
+.ll
+.exrc
 __pycache__
