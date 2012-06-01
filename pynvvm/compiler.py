@@ -9,8 +9,8 @@ import inspect
 import sys
 import numpy
 
-#import pycuda.autoinit
-#import pycuda.driver as drv
+import pycuda.autoinit
+import pycuda.driver as drv
 
 from . import nvvm
 from . import nvtype
@@ -676,41 +676,39 @@ def compile_nvvm(llcode):
   return ptxcode
 
 def create_function(ptxcode, iomap, arg_nametypes):
-  pass  
-  #m = drv.module_from_buffer(ptxcode)
-  ##print(ptxcode)
-  #stub_function = m.get_function('stub')
+  m = drv.module_from_buffer(ptxcode)
+  #print(ptxcode)
+  stub_function = m.get_function('stub')
 
-  #iofun = { 
-  #          IOTracker.nio:drv.In, 
-  #          IOTracker.i:drv.In, 
-  #          IOTracker.o:drv.Out, 
-  #          IOTracker.io:drv.InOut
-  #        }
+  iofun = { 
+            IOTracker.nio:drv.In, 
+            IOTracker.i:drv.In, 
+            IOTracker.o:drv.Out, 
+            IOTracker.io:drv.InOut
+          }
 
-  #print iomap
-  #def param_wrapper(bsz, gsz):
-  #  
-  #  def stub_wrapper(*args):
+  def param_wrapper(bsz, gsz):
+    
+    def stub_wrapper(*args):
 
-  #    assert len(args) == len(arg_nametypes), 'error : invalid number argument'
-  #    
-  #    wrapped_args = []
-  #    for i, arg in enumerate(args):
-  #      arg_name, arg_type = arg_nametypes[i]
-  #      
-  #      if isinstance(arg_type, nvtype.pointer):
-  #        wrapped_args.append(iofun[iomap[arg_name]](arg))
-  #      else:
-  #        wrapped_args.append(arg)
+      assert len(args) == len(arg_nametypes), 'error : invalid number argument'
+      
+      wrapped_args = []
+      for i, arg in enumerate(args):
+        arg_name, arg_type = arg_nametypes[i]
+        
+        if isinstance(arg_type, nvtype.pointer):
+          wrapped_args.append(iofun[iomap[arg_name]](arg))
+        else:
+          wrapped_args.append(arg)
 
-  #    stub_function(*tuple(wrapped_args), block=bsz, grid=gsz)
-  #    
-  #    return 
-  #  
-  #  return stub_wrapper
-  #
-  #return param_wrapper
+      stub_function(*tuple(wrapped_args), block=bsz, grid=gsz)
+      
+      return 
+    
+    return stub_wrapper
+  
+  return param_wrapper
 
 def compile(fun, *args):
   

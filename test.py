@@ -1,5 +1,5 @@
-import math
 import numpy as np
+
 from pynvvm.kernel import kernel
 from pynvvm.nvtype import array, float32, int32
 
@@ -14,43 +14,25 @@ def saxpy(z, x, y, a, w, h):
   
   return
 
-x = np.ndarray([1.0, 2.0, 3.0, 4.0]).astype(np.float32)
-y = np.ndarray([1.0, 2.0, 3.0, 4.0]).astype(np.float32)
-z = np.zeros(4).astype(np.float32)
+def gpu(x, y, a, n):
+  z = np.zeros_like(x)
+  
+  bsz = (16, 16, 1)
+  gsz  = ((n+16-1)/16, (n+16-1)/16, 1)
+  
+  saxpy(bsz, gsz)(z, x, y, a, np.int32(n), np.int32(n))
 
-bsz = (4, 1, 1)
-gsz  = (1, 1, 1)
+  return z
 
-saxpy(bsz, gsz)(a, b, c, np.int32(3))
+def cpu(x, y, a, n):
+  return a * x + y
 
-print(c)
+if '__main__' == __name__:
+  
+  n = 1024
 
+  x = np.random.randn(n*n).astype(np.float32)
+  y = np.random.randn(n*n).astype(np.float32)
+  a = np.float32(2.71828183)
 
-
-#import pycuda.autoinit
-#import pycuda.driver as drv
-#import numpy
-#
-#from pycuda.compiler import SourceModule
-#
-#mod = SourceModule("""
-#__global__ void multiply_them(float *dest, float *a, float *b, float v)
-#{
-#    const int i = threadIdx.x;
-#    //dest[i] = a[i] * b[i];
-#    dest[i] = v;
-#}
-#""")
-#
-#multiply_them = mod.get_function("multiply_them")
-#
-#a = numpy.random.randn(400).astype(numpy.float32)
-#b = numpy.random.randn(400).astype(numpy.float32)
-#
-#dest = numpy.zeros_like(a)
-#multiply_them(
-#    drv.Out(dest), drv.In(a), drv.In(b), drv.In()
-#    block=(400,1,1), grid=(1,1))
-#
-#print(dest-a*b)
-#
+  print cpu(x, y, a, n) - gpu (x, y, a, n)
