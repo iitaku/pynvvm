@@ -588,7 +588,6 @@ class CodeGenerator(ast.NodeVisitor):
       return self.builder.create_load(llptr)
 
   def visit_Name(self, node):
-
     ty, llptr = self.current_scope.search_env(node.id)
                
     if ast.Store == type(node.ctx):
@@ -624,9 +623,10 @@ def compile_ast(tree, *arg_types):
 
   codegen = CodeGenerator(arg_nametypes)
   codegen.visit(tree)
-  #codegen.module.dump()
 
   llcode = pyllvm.print_ir(codegen.module)
+
+  #print(llcode)
   
   return llcode, io_track.args_iomap, arg_nametypes
 
@@ -664,12 +664,13 @@ def create_function(ptxcode, iomap, arg_nametypes):
   stub_function = m.get_function('stub')
 
   iofun = { 
-            IOTracker.nio:(lambda x : x), 
+            IOTracker.nio:drv.In, 
             IOTracker.i:drv.In, 
             IOTracker.o:drv.Out, 
             IOTracker.io:drv.InOut
           }
 
+  print iomap
   def param_wrapper(bsz, gsz):
     
     def stub_wrapper(*args):
@@ -678,9 +679,13 @@ def create_function(ptxcode, iomap, arg_nametypes):
       
       wrapped_args = []
       for i, arg in enumerate(args):
-        arg_name, _ = arg_nametypes[i]
-        wrapped_args.append(iofun[iomap[arg_name]](arg))
-    
+        arg_name, arg_type = arg_nametypes[i]
+        
+        if isinstance(arg_type, nvtype.pointer):
+          wrapped_args.append(iofun[iomap[arg_name]](arg))
+        else:
+          wrapped_args.append(arg)
+
       stub_function(*tuple(wrapped_args), block=bsz, grid=gsz)
       
       return 
@@ -692,7 +697,7 @@ def create_function(ptxcode, iomap, arg_nametypes):
 def compile(fun, *args):
   
   tree = ast.parse(inspect.getsource(fun))
-
+   
   (llcode, iomap, arg_nametypes) = compile_ast(tree, *args)
 
   ptxcode = compile_nvvm(llcode)
