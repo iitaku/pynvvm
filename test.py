@@ -14,14 +14,14 @@ def saxpy(z, x, y, a, w, h):
   
   return
 
-x = np.array([1.0, 2.0, 3.0, 4.0]).astype(np.float32)
-y = np.array([1.0, 2.0, 3.0, 4.0]).astype(np.float32)
-c = np.zeros(4).astype(np.float32)
+x = np.ndarray([1.0, 2.0, 3.0, 4.0]).astype(np.float32)
+y = np.ndarray([1.0, 2.0, 3.0, 4.0]).astype(np.float32)
+z = np.zeros(4).astype(np.float32)
 
 bsz = (4, 1, 1)
 gsz  = (1, 1, 1)
 
-vec_add(bsz, gsz)(a, b, c, np.int32(3))
+saxpy(bsz, gsz)(a, b, c, np.int32(3))
 
 print(c)
 

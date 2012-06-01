@@ -9,8 +9,8 @@ import inspect
 import sys
 import numpy
 
-import pycuda.autoinit
-import pycuda.driver as drv
+#import pycuda.autoinit
+#import pycuda.driver as drv
 
 from . import nvvm
 from . import nvtype
@@ -517,6 +517,24 @@ class CodeGenerator(ast.NodeVisitor):
     
     return llretval
 
+  def visit_BoolOp(self, node):
+    
+    llretval = self.visit(node.values[0])
+
+    for value in node.values[1:]:
+      llvalue = self.visit(value)
+      
+      if isinstance(node.op, ast.And):
+        llretval = self.builder.create_and(llretval, llvalue, '')
+      elif isinstance(node.op, ast.Or):
+        llretval = self.builder.create_or(llretval, llvalue, '')
+      elif isinstance(node.op, ast.Xor):
+        llretval = self.builder.create_xor(llretval, llvalue, '')
+      else:
+        raise Exception, 'error : unsupported binop'
+    
+    return llretval
+
   def visit_Call(self, node):
     (ret_ty, param_ty) = _builtin_types.get(node.func.id, (None, None))
     llret_ty = ret_ty.typefun()(self.context)
@@ -658,41 +676,41 @@ def compile_nvvm(llcode):
   return ptxcode
 
 def create_function(ptxcode, iomap, arg_nametypes):
-     
-  m = drv.module_from_buffer(ptxcode)
-  #print(ptxcode)
-  stub_function = m.get_function('stub')
+  pass  
+  #m = drv.module_from_buffer(ptxcode)
+  ##print(ptxcode)
+  #stub_function = m.get_function('stub')
 
-  iofun = { 
-            IOTracker.nio:drv.In, 
-            IOTracker.i:drv.In, 
-            IOTracker.o:drv.Out, 
-            IOTracker.io:drv.InOut
-          }
+  #iofun = { 
+  #          IOTracker.nio:drv.In, 
+  #          IOTracker.i:drv.In, 
+  #          IOTracker.o:drv.Out, 
+  #          IOTracker.io:drv.InOut
+  #        }
 
-  print iomap
-  def param_wrapper(bsz, gsz):
-    
-    def stub_wrapper(*args):
+  #print iomap
+  #def param_wrapper(bsz, gsz):
+  #  
+  #  def stub_wrapper(*args):
 
-      assert len(args) == len(arg_nametypes), 'error : invalid number argument'
-      
-      wrapped_args = []
-      for i, arg in enumerate(args):
-        arg_name, arg_type = arg_nametypes[i]
-        
-        if isinstance(arg_type, nvtype.pointer):
-          wrapped_args.append(iofun[iomap[arg_name]](arg))
-        else:
-          wrapped_args.append(arg)
+  #    assert len(args) == len(arg_nametypes), 'error : invalid number argument'
+  #    
+  #    wrapped_args = []
+  #    for i, arg in enumerate(args):
+  #      arg_name, arg_type = arg_nametypes[i]
+  #      
+  #      if isinstance(arg_type, nvtype.pointer):
+  #        wrapped_args.append(iofun[iomap[arg_name]](arg))
+  #      else:
+  #        wrapped_args.append(arg)
 
-      stub_function(*tuple(wrapped_args), block=bsz, grid=gsz)
-      
-      return 
-    
-    return stub_wrapper
-  
-  return param_wrapper
+  #    stub_function(*tuple(wrapped_args), block=bsz, grid=gsz)
+  #    
+  #    return 
+  #  
+  #  return stub_wrapper
+  #
+  #return param_wrapper
 
 def compile(fun, *args):
   
