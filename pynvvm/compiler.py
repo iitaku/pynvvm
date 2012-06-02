@@ -1,8 +1,7 @@
 
 # note : type inferitance does not support scope
 #        there are a lot of unsupported Op
-#        leaks memory
-#        creating alloca for all value (too slow...)
+#        (maybe) leaks memory
 
 import ast
 import inspect
