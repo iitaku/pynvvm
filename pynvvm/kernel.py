@@ -1,8 +1,7 @@
 from . import compiler
 
 def kernel(*args):
-  def inner_kernel(fun):
+  def kernel_wrapper(fun):
     return compiler.compile(fun, *args)
-
-  return inner_kernel
+  return kernel_wrapper
 
