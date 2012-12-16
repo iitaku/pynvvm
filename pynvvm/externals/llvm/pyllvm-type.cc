@@ -14,7 +14,7 @@ PyLLVMFunctionType *PyLLVMFunctionType::get(PyLLVMType *result, std::vector<PyLL
 {
   std::vector<llvm::Type *> params_;
   
-  for(int i=0; i<params.size(); ++i)
+  for(size_t i=0; i<params.size(); ++i)
   {
     params_.push_back(params[i]->obj_);
   }

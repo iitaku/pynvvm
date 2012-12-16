@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include <llvm/Support/IRBuilder.h>
+#include <llvm/IRBuilder.h>
 
 #include "pyllvm-type.h"
 #include "pyllvm-value.h"
@@ -153,7 +153,7 @@ class PyLLVMBuilder
     {
       //llvm::iplist<Value *> args_;
       std::vector<llvm::Value *> args_;
-      for (int i=0; i<args.size(); ++i)
+      for (size_t i=0; i<args.size(); ++i)
       {
         args_.push_back(args[i]->obj_);
       }

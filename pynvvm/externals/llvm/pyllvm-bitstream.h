@@ -17,6 +17,7 @@ namespace pyllvm {
 
 std::string print_ir(PyLLVMModule *module)
 {
+#if 0
   llvm::PassManager *PM;
   int error = 0;
   PM = new llvm::PassManager();
@@ -36,6 +37,7 @@ std::string print_ir(PyLLVMModule *module)
   llvm::WriteBitcodeToStream(module->obj_, stream);
 
   //std::string code(buffer.begin(), buffer.end());
+#endif
   std::string code;
  
   llvm::raw_string_ostream ss(code);

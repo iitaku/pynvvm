@@ -16,7 +16,7 @@ clean:
 	rm -rf *.o *.so
 
 pyllvm.so: $(OBJS)
-	g++ $(OBJS) -o $@ -fPIC --shared -L /opt/local/lib `llvm-config --cppflags --ldflags --libs core bitWriter` -lboost_python -lpython2.7
+	clang++ $(OBJS) -o $@ -fPIC --shared `llvm-config --ldflags` -lboost_python-mt -lpython2.7 `llvm-config --libs`
 
 .cc.o:
-	g++ $< -fPIC -c -I /opt/local/include -I /usr/include/python2.7 `llvm-config --cppflags`
+	clang++ $< -fPIC -c -I /usr/include/python2.7 `llvm-config --cppflags`
